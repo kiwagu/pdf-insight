@@ -1,11 +1,14 @@
 import { z } from 'zod';
-import { ISO_4217_CODES, ISO_639_1_CODES } from './iso-codes.ts';
+import { ISO_4217_CODES, ISO_4217_HISTORIC_CODES, ISO_639_1_CODES } from './iso-codes.ts';
 
 export const DOCUMENT_TYPES = ['faktura', 'umowa', 'oferta', 'raport', 'inne'] as const;
 
 const isoDate = z.iso.date({ message: 'expected a valid YYYY-MM-DD date' });
 const iso639 = z.enum(ISO_639_1_CODES, { message: 'expected an ISO 639-1 language code' });
-const iso4217 = z.enum(ISO_4217_CODES, { message: 'expected an ISO 4217 currency code' });
+// Withdrawn codes are accepted too: an older document can carry real amounts in HRK or DEM.
+const iso4217 = z.enum([...ISO_4217_CODES, ...ISO_4217_HISTORIC_CODES], {
+  message: 'expected an ISO 4217 currency code',
+});
 
 const llmDocumentSchema = z.object({
   language: iso639,

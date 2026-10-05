@@ -20,7 +20,7 @@ export const ISO_639_1_CODES = [
 ] as const;
 
 /** Every active ISO 4217 alphabetic code (currencies, funds, precious metals and the
- *  special X codes), uppercase and sorted. Withdrawn codes such as HRK, BGN or ANG are absent. */
+ *  special X codes), uppercase and sorted. Withdrawn codes are in ISO_4217_HISTORIC_CODES. */
 // prettier-ignore
 export const ISO_4217_CODES = [
   'AED', 'AFN', 'ALL', 'AMD', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT',
@@ -38,4 +38,14 @@ export const ISO_4217_CODES = [
   'USD', 'USN', 'UYI', 'UYU', 'UYW', 'UZS', 'VED', 'VES', 'VND', 'VUV', 'WST', 'XAF',
   'XAG', 'XAU', 'XBA', 'XBB', 'XBC', 'XBD', 'XCD', 'XCG', 'XDR', 'XOF', 'XPD', 'XPF',
   'XPT', 'XSU', 'XTS', 'XUA', 'XXX', 'YER', 'ZAR', 'ZMW', 'ZWG',
+] as const;
+
+/** Withdrawn ISO 4217 codes that still appear in older documents (pre-euro national
+ *  currencies, redenominated or replaced currencies), uppercase and sorted. */
+// prettier-ignore
+export const ISO_4217_HISTORIC_CODES = [
+  'AFA', 'ANG', 'ATS', 'AZM', 'BEF', 'BGN', 'BYR', 'CSD', 'CUC', 'CYP', 'DEM', 'EEK',
+  'ESP', 'FIM', 'FRF', 'GHC', 'GRD', 'HRK', 'IEP', 'ITL', 'LTL', 'LUF', 'LVL', 'MRO',
+  'MTL', 'MZM', 'NLG', 'PLZ', 'PTE', 'ROL', 'RUR', 'SDD', 'SIT', 'SKK', 'SLL', 'SRG',
+  'STD', 'TMM', 'TRL', 'VEB', 'VEF', 'YUM', 'ZMK', 'ZWD', 'ZWL',
 ] as const;

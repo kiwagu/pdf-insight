@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ISO_4217_CODES, ISO_639_1_CODES } from './iso-codes.ts';
+import { llmAnalysisSchema } from './analysis-result.schema.ts';
+import { ISO_4217_CODES, ISO_4217_HISTORIC_CODES, ISO_639_1_CODES } from './iso-codes.ts';
 
 const MUST_HAVE_CURRENCIES = [
   'PLN',
@@ -34,5 +35,20 @@ describe('ISO_4217_CODES', () => {
   });
   it('includes the currencies documents commonly use', () => {
     expect(ISO_4217_CODES).toEqual(expect.arrayContaining(MUST_HAVE_CURRENCIES));
+  });
+});
+
+describe('ISO_4217_HISTORIC_CODES', () => {
+  it('holds unique uppercase three-letter codes, none of them active', () => {
+    expect(new Set(ISO_4217_HISTORIC_CODES).size).toBe(ISO_4217_HISTORIC_CODES.length);
+    for (const code of ISO_4217_HISTORIC_CODES) expect(code).toMatch(/^[A-Z]{3}$/);
+    const active = new Set<string>(ISO_4217_CODES);
+    expect(ISO_4217_HISTORIC_CODES.filter((code) => active.has(code))).toEqual([]);
+  });
+  it('lets amounts in withdrawn currencies through the strict schema, but not unknown codes', () => {
+    const currency = llmAnalysisSchema.shape.amounts.element.shape.currency;
+    expect(currency.safeParse('HRK').success).toBe(true);
+    expect(currency.safeParse('BGN').success).toBe(true);
+    expect(currency.safeParse('ZZZ').success).toBe(false);
   });
 });
