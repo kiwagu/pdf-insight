@@ -1,0 +1,24 @@
+---
+description: Bun installs and runs everything, bunx runs tools, Turborepo runs the workspace tasks; never npm, pnpm, yarn or node
+alwaysApply: true
+---
+
+# Use Bun
+
+- Bun is the package manager and the script runner (`packageManager` pins `bun@1.3.14`).
+  Install with `bun install`; CI and the deploy workflows use `bun install --frozen-lockfile`.
+- Run scripts with `bun run <script>` and one-off tools with `bunx <tool>`
+  (`bunx vitest run`, `bunx supabase ...`, `bunx turbo ...`).
+- Never use npm, npx, pnpm, yarn or node to install or run anything: they would bypass the
+  workspace links or write a second lockfile. `bun.lock` is the only lockfile.
+- Add a dependency with `bun add <pkg>` (`bun add -d` for tooling) inside the workspace that
+  uses it; internal packages are referenced as `"workspace:*"`.
+- Turborepo runs the tasks across the workspaces: the root `lint`, `typecheck`, `test`, `build`
+  and `dev` scripts call `turbo run <task>`, and each workspace defines its own scripts.
+- One workspace only: `bunx turbo run test --filter=@pdf-insight/domain`, or
+  `bun run --cwd packages/domain test`.
+- `bun run check` is the gate: Prettier check, lint (with the i18n parity check), typecheck,
+  tests, hygiene. CI runs it, then `bun run build`.
+- Format with `bun run format`.
+- Turborepo's own agent guidance is off (`agentGuidance: false` in `turbo.json`), so it never
+  writes into `AGENTS.md`.

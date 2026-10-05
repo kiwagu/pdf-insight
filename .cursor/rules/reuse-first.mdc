@@ -1,0 +1,29 @@
+---
+description: Search contracts, domain and i18n before adding a helper; parameterize rather than fork; no parallel implementations
+alwaysApply: true
+---
+
+# Reuse first
+
+Before adding a helper, constant, type or schema, look for the existing one:
+
+- `@pdf-insight/contracts`: payload schemas and types, request limits (`MAX_SCANNED_PAGES`,
+  `MAX_PAGE_TEXT_LENGTH`, `MAX_IMAGE_BASE64_LENGTH`), ISO code lists, `API_ERROR_CODES`,
+  `DOCUMENT_TYPES`, the id factories.
+- `@pdf-insight/domain`: the ports, `isScannedPage`, `chunkPages`, `mergeAnalyses`,
+  `numericTokens`, `groundAmounts`, `withOneRetry`, `AnalysisError` and its codes.
+- `@pdf-insight/i18n`: the locales, `createTranslator`, `missingKeys`.
+- `@pdf-insight/typescript-config` and `@pdf-insight/eslint-config`: extend them; never copy
+  compiler or lint settings into a workspace.
+
+Then:
+
+- Search with `git grep` across `packages/` and `apps/` before writing anything shared.
+- Parameterize the existing function (an options object, an injected dependency) rather than
+  forking a near-copy of it.
+- No parallel implementations: one schema per payload, one retry helper, one translator, one
+  list of error codes. If the existing one is wrong, fix it in place, with a test, for every
+  caller.
+- What two workspaces need moves into the right package (a pure rule into `domain`, a shape
+  into `contracts`), never into a copy in each app.
+- Prefer the platform (`fetch`, `Intl`, `URL`) and the existing dependencies to a new library.

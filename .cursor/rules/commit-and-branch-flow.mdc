@@ -1,0 +1,25 @@
+---
+description: One branch per slice from main, one-line Conventional Commit subjects, squash landing with a Squashed-from trailer
+alwaysApply: true
+---
+
+# Commits and branches
+
+- One branch per slice, cut from the current `main`: `feat/<slice>` for a feature slice
+  (`feat/contracts`, `feat/domain`), `docs/<topic>` for documentation.
+- Commit subjects are one line in Conventional Commits form, lowercase, no trailing period:
+  `feat(domain): ports, chunking, merge, amount grounding, retry and the analyze use cases`,
+  `docs(ai-log): lessons from the i18n slice`.
+- No commit body: exactly one `-m`. The reasoning belongs in code comments, READMEs and the
+  slice's `AI_LOG.md` entry.
+- `bun run check` is green before every commit. Review fixes are further commits on the same
+  branch, never a separate fix branch.
+- Landing is a separate, deliberate step after the review verdict (a passing review is not
+  approval to land): one squash commit on `main` with the slice's subject and a trailer:
+  `git merge --squash feat/<slice>`
+  `git commit -m "<subject>" -m "Squashed-from: feat/<slice> (<short-sha>)"`
+  The slice's `docs(ai-log): ...` entry follows as its own commit on `main`.
+- No merge commits on `main`, and `main` is never rebased or force-pushed.
+- Branches are kept after landing: they carry the step-by-step history the squash collapses.
+- Agents never push. Publishing `main` is the owner's explicit action; that push runs CI and the
+  deploy workflows.

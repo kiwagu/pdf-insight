@@ -10,5 +10,6 @@ infra/dev/functions.env
 *.log
 .DS_Store
 refs/
-.claude/
+.claude/worktrees/
+.claude/settings.local.json
 apps/web/public/pdfjs/

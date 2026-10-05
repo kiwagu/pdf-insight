@@ -1,0 +1,27 @@
+---
+description: Write the failing Vitest spec first, watch it fail, implement, watch it pass, and report both runs
+alwaysApply: true
+---
+
+# Tests first
+
+Every behaviour change starts with a failing test.
+
+1. Write the spec next to the code (`src/<name>.spec.ts`, or `.spec.tsx` for a component;
+   Vitest) for the behaviour you are about to add or fix.
+2. Run it and see it fail for the expected reason: `bunx vitest run src/<name>.spec.ts` inside
+   the workspace. A test that passes before the code exists proves nothing.
+3. Write the smallest code that makes it pass, and run it again until it is green.
+4. Run the workspace suite and then `bun run check` at the root before committing.
+
+What a good test asserts:
+
+- Observable behaviour through the public function, port or HTTP handler: return values, error
+  codes, status codes and headers, calls made on an injected port. Not private helpers.
+- One credible regression per test; the negative cases (rejected input, a foreign origin, a
+  retry that gives up) matter as much as the happy path.
+- Side effects are injected (ports, `createId`, `now`, `sleep`, `fetchImpl`), so a test needs no
+  network, no real model and no real timers.
+
+Evidence: a task report quotes the failing run (the assertion) and the passing run (the test
+runner's own pass count), not a paraphrase of them.

@@ -1,0 +1,26 @@
+---
+description: Every boundary payload has a Zod schema in @pdf-insight/contracts and is validated on both sides of the HTTP boundary
+alwaysApply: true
+---
+
+# Zod schema first
+
+- Every payload that crosses a boundary has a Zod schema in `@pdf-insight/contracts`: the analyze
+  request and response, the model's answer, the result kept in the browser history. Types are
+  derived from the schema (`z.infer`, `z.input`), never written by hand next to it.
+- Change the schema first, with its spec, then the code on both sides of the boundary.
+- The result is validated twice. In the Edge Function, the request is parsed with
+  `analyzeRequestSchema`, the model's answer with `llmAnalysisSchema`, and the assembled result
+  with `analysisResultSchema`. In the browser, the response is parsed with `analyzeResponseSchema`
+  before anything is rendered, and stored history is re-checked when it is read back.
+- Two schemas describe the model's answer, on purpose:
+  - `llmOutputFormatSchema` (loose) is handed to the model as its structured output format. It
+    has the same shape without date, code-list and length checks, because that format accepts
+    only a subset of JSON Schema.
+  - `llmAnalysisSchema` (strict) validates the parsed answer: ISO 639-1 language, active or
+    withdrawn ISO 4217 currency, calendar-valid `YYYY-MM-DD` dates, at most 7 key points. A
+    failure is retried once, then reported as an error; an invalid answer is never shown.
+- Missing information is `null` or `[]`, never an invented value or an omitted key.
+- The result keeps every field of its schema; changes to it are additive only (like `meta`).
+- Ids come from the contracts' factories (`createAnalysisId`, `createRequestId`), passed to the
+  code that needs them as plain functions.
