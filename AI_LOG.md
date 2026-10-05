@@ -105,3 +105,29 @@ API slice exists.
 - **Type-environment details the plan got wrong.** The package needed the DOM library for `Blob`
   and `setTimeout`, and port interfaces declared as methods tripped the `unbound-method` lint rule in
   tests; both were adjusted with the same public names.
+
+### Slice 5: API handler and the Supabase Edge Function
+
+- **The plan trusted an SDK helper it had not run.** The design called for the SDK's parse helper
+  to return structured output. Claude checked it against the installed SDK and found that it throws
+  on refused or truncated answers before the stop reason can be inspected, which would have hidden
+  the difference between "the model declined" and "the output was invalid". The adapter now calls
+  the plain messages API, inspects the stop reason first and validates the parsed JSON itself. The
+  output token budget was also raised because the model's thinking counts against it.
+- **A rate limiter that could stall instead of failing open.** The review showed that the
+  Postgres-backed limiter awaited the RPC with no deadline, so a stalled database would have stalled
+  every request, and that an unexpected RPC body (`[{}]`) became a denial with an undefined retry
+  delay. Fixed with a bounded deadline covering request and body, Zod validation of the RPC rows,
+  and one logged fail-open path for both cases, each with tests.
+- **A body cap that trusted a header.** The plan enforced the request size from `Content-Length`
+  only; the handler now also enforces it while reading the body, so a missing or false header cannot
+  bypass it.
+- **Prompt envelope hardening.** Claude noticed that a literal `</document>` inside a PDF's text
+  could close the data envelope in the prompt. Tags of the envelope names are now escaped inside
+  document text and partial results, with regression tests.
+- **A workflow file the plan got wrong.** The planned keep-alive workflow was invalid YAML; it was
+  rewritten.
+- **Local gateway versus function.** On the local Supabase stack the gateway answers CORS preflights
+  itself and adds a wildcard origin, which hides the function's own strict CORS behaviour; the
+  function was verified by calling it directly, and the hosted gateway is checked once the project
+  is deployed.
