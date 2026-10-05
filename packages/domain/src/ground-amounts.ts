@@ -1,40 +1,28 @@
 import type { LlmAnalysis } from '@pdf-insight/contracts';
 
-/** Most space-separated digit groups read as one amount; `1 000 000 000 000,00` has five. */
-const MAX_GROUPS = 5;
+/**
+ * One written number. An optional sign counts only when no letter or digit is glued to it, so
+ * the hyphen in `10-20` is not a minus. The integer part is grouped by spaces (also no-break or
+ * line breaks: a page's visual lines are joined with `\n`, and a paragraph can wrap inside an
+ * amount), by dots or by commas, or not grouped at all. Every group after the first has exactly
+ * three digits, and a decimal part of one or two digits ends the number, so neighbouring table
+ * columns (`55 350,00 12 730,50`) stay separate numbers.
+ */
+const NUMBER =
+  /(?:(?<![\p{L}\p{N}])[+-])?(?:\d{1,3}(?:[ \u00A0\u202F\n]\d{3})+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gu;
 
-/** The values one written number can stand for under Polish and English separators. */
-function readings(written: string): number[] {
-  const candidates = new Set<string>([
-    written.replace(/\./g, '').replace(',', '.'), // 184.500,00 -> 184500.00 ; 68080,50 -> 68080.50
-    written.replace(/,/g, ''), // 12,300.00 -> 12300.00
-    written.replace(/[.,]/g, ''), // digits only
-  ]);
-  return [...candidates]
-    .filter((c) => /\d/.test(c))
-    .map(Number)
-    .filter(Number.isFinite);
+/** The value of one NUMBER match: separators removed, a decimal comma read as a point. */
+function parseNumber(written: string): number {
+  const unsigned = written.replace(/^[+-]/, '');
+  const decimal = /[.,](\d{1,2})$/.exec(unsigned);
+  const integer = (decimal ? unsigned.slice(0, decimal.index) : unsigned).replace(/\D/g, '');
+  const value = Number(`${integer}.${decimal?.[1] ?? '0'}`);
+  return written.startsWith('-') ? -value : value;
 }
 
-/**
- * Every number-like token of the text, parsed with Polish and English separators. A space is
- * both the Polish thousands separator and the gap between table columns
- * (`55 350,00 12 730,50 68 080,50`), so every run of up to MAX_GROUPS adjacent groups is read.
- */
+/** The value of every number written in the text, exactly one per number, in text order. */
 export function numericTokens(text: string): number[] {
-  // `\s` also covers the no-break and narrow no-break spaces used as thousands separators.
-  const matches = text.match(/\d[\d\s.,]*\d|\d/g) ?? [];
-  const out: number[] = [];
-  for (const raw of matches) {
-    const groups = raw.split(/\s+/);
-    for (let from = 0; from < groups.length; from++) {
-      const last = Math.min(groups.length, from + MAX_GROUPS);
-      for (let to = from + 1; to <= last; to++) {
-        out.push(...readings(groups.slice(from, to).join('')));
-      }
-    }
-  }
-  return out;
+  return Array.from(text.matchAll(NUMBER), ([written]) => parseNumber(written));
 }
 
 /**

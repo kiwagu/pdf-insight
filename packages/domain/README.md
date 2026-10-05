@@ -17,14 +17,16 @@ the web-standard globals (`Blob`, `setTimeout`) that both the browser and Deno p
 ## Key exports
 
 - **Use cases**: `analyzeText(request, deps)` runs on the server side: it splits the page texts
-  into chunks, analyzes them with at most three model calls in flight, reduces several partial
-  answers into one, merges the list fields, drops amounts that are neither found in the text nor attributable to a
-  scanned page (with a `meta.warnings` entry) and returns a schema-checked `AnalysisResult`; deps
-  `AnalyzeTextDeps { model, modelName, createId, now, maxChunkChars, retryDelayMs }`.
-  `analyzeDocument(file, deps)` runs in the browser: it reports the `extracting` and `analyzing`
-  stages, rejects a PDF with neither readable text nor scanned pages as `invalid_file`, validates
-  the analyzer's answer (`invalid_response` otherwise) and saves it to the history; deps
-  `AnalyzeDocumentDeps { extractor, analyzer, history, onStage, maxScannedPages }`.
+  into chunks, analyzes them with at most three model calls in flight (after a chunk fails for
+  good, no further chunk is started and the first error is rethrown), reduces several partial
+  answers into one, merges the list fields, drops amounts that are neither found in the text nor
+  attributable to a scanned page (with a `meta.warnings` entry) and returns a schema-checked
+  `AnalysisResult`; deps `AnalyzeTextDeps { model, modelName, createId, now, maxChunkChars,
+retryDelayMs }`. `analyzeDocument(file, deps)` runs in the browser: it reports the `extracting`
+  and `analyzing` stages, rejects a PDF with neither readable text nor scanned pages as
+  `invalid_file`, validates the analyzer's answer (`invalid_response` otherwise) and saves it to
+  the history; deps `AnalyzeDocumentDeps { extractor, analyzer, history, onStage,
+maxScannedPages }`.
 - **Ports**: `TextExtractor`, `DocumentAnalyzer`, `AnalysisHistory`, `ModelPort` with its inputs
   `ChunkInput` and `ReduceInput`.
 - **Values**: `ExtractedDocument`, `Chunk`, `HistoryEntry`, `Stage`, constants
@@ -32,15 +34,21 @@ the web-standard globals (`Blob`, `setTimeout`) that both the browser and Deno p
 - **Errors**: `AnalysisError` (`code`, `message`, `retryable`; codes are the API error codes plus
   `invalid_file`, `too_large`, `extraction_failed`, `network`, `invalid_response`), type
   `AnalysisErrorCode`, `ModelOutputInvalidError` (always retryable) and `ModelUpstreamError`.
-- **Pure functions**: `isScannedPage(text)` (fewer than 20 non-whitespace characters),
-  `chunkPages(pageTexts, { maxChars })` (splits only on page boundaries, labels each page as
-  `[page N]`, keeps an oversized page whole), `mergeAnalyses(partials)` (first summary, first
-  non-null title and date, case-insensitive dedupe, at most 7 key points),
-  `groundAmounts(analysis, fullText, scannedPages)` and `numericTokens(text)` (reads Polish and
-  English number formats, including amounts printed side by side in table rows; an amount whose
-  value is not in the text is kept only when its `page` is a scanned page, or when it names no page
-  and the document has scanned pages, since the text layer cannot confirm what a page image shows), `withOneRetry(fn, { delayMs })`
-  (retries once when the error carries `retryable: true`).
+- **Pure functions**:
+  - `isScannedPage(text)`: fewer than 20 non-whitespace characters.
+  - `chunkPages(pageTexts, { maxChars })`: labels each page as `[page N]`, splits only between
+    pages and keeps every chunk, separators included, within `maxChars` unless a single page is
+    longer on its own, in which case that page becomes its own chunk.
+  - `mergeAnalyses(partials)`: first summary, first non-null title and date, case-insensitive
+    dedupe, at most 7 key points.
+  - `numericTokens(text)`: exactly one value per written number. It reads an optional sign, digit
+    groups of three separated by a space, no-break space, line break, dot or comma, and a decimal
+    part of one or two digits, so table columns printed side by side stay separate amounts.
+  - `groundAmounts(analysis, fullText, scannedPages)`: keeps an amount whose value is among those
+    numbers; one that is not is kept only when its `page` is a scanned page, or when it names no
+    page and the document has scanned pages, since the text layer cannot confirm what a page
+    image shows.
+  - `withOneRetry(fn, { delayMs })`: retries once when the error carries `retryable: true`.
 
 ## Scripts
 

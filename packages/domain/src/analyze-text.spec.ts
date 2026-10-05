@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LlmAnalysis } from '@pdf-insight/contracts';
 import { analysisResultSchema } from '@pdf-insight/contracts';
 import { analyzeText } from './analyze-text.ts';
-import { ModelOutputInvalidError } from './errors.ts';
+import { ModelOutputInvalidError, ModelUpstreamError } from './errors.ts';
 import type { ModelPort } from './ports.ts';
 
 const llm = (over: Partial<LlmAnalysis> = {}): LlmAnalysis => ({
@@ -135,5 +135,28 @@ describe('analyzeText', () => {
     );
     expect(result.amounts).toEqual([annex]);
     expect(result.meta.warnings).toEqual([]);
+  });
+  it('starts no further chunk once one has failed for good', async () => {
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const analyzeChunk = vi
+      .fn<ModelPort['analyzeChunk']>()
+      .mockRejectedValueOnce(new ModelUpstreamError('bad key', false))
+      .mockImplementation(async () => {
+        await gate;
+        return llm();
+      });
+    const pageTexts = Array.from({ length: 6 }, () => 'x'.repeat(95));
+    await expect(
+      analyzeText(
+        { fileName: 'x.pdf', pages: 6, pageTexts, scannedPages: [] },
+        deps({ analyzeChunk, reduce: vi.fn() }),
+      ),
+    ).rejects.toBeInstanceOf(ModelUpstreamError);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(analyzeChunk.mock.calls.map(([input]) => input.chunk.index)).toEqual([0, 1, 2]);
   });
 });

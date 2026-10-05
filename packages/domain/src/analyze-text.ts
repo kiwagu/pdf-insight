@@ -18,6 +18,11 @@ export interface AnalyzeTextDeps {
 
 const PARALLEL = 3;
 
+/**
+ * Runs `fn` over `items` with at most `limit` calls in flight, keeping the input order. After the
+ * first rejection no worker starts another item and the returned promise rejects at once with
+ * that error; calls already in flight finish on their own and their results are discarded.
+ */
 async function mapLimited<T, R>(
   items: T[],
   limit: number,
@@ -25,10 +30,16 @@ async function mapLimited<T, R>(
 ): Promise<R[]> {
   const results: R[] = new Array<R>(items.length);
   let next = 0;
+  let failed = false;
   const worker = async (): Promise<void> => {
-    while (next < items.length) {
+    while (!failed && next < items.length) {
       const i = next++;
-      results[i] = await fn(items[i] as T);
+      try {
+        results[i] = await fn(items[i] as T);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));

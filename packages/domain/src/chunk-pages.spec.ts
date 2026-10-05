@@ -24,4 +24,19 @@ describe('chunkPages', () => {
     const [chunk] = chunkPages(['first', 'second'], { maxChars: 1000 });
     expect(chunk?.text).toMatch(/\[page 1\][\s\S]*first[\s\S]*\[page 2\][\s\S]*second/);
   });
+  it('counts the separator between pages against the limit', () => {
+    // '[page 1]\na' + '\n\n' + '[page 2]\nb' is 22 characters.
+    const exact = chunkPages(['a', 'b'], { maxChars: 22 });
+    expect(exact).toHaveLength(1);
+    expect(exact[0]?.text).toHaveLength(22);
+    expect(chunkPages(['a', 'b'], { maxChars: 21 })).toHaveLength(2);
+  });
+  it('keeps every chunk within maxChars when no page is oversized', () => {
+    const pages = [5, 17, 3, 30, 12, 8, 25, 1, 40].map((n) => 'p'.repeat(n));
+    for (const maxChars of [50, 60, 75]) {
+      for (const chunk of chunkPages(pages, { maxChars })) {
+        expect(chunk.text.length).toBeLessThanOrEqual(maxChars);
+      }
+    }
+  });
 });
