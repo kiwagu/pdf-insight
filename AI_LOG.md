@@ -36,3 +36,23 @@ The analyzer's own system prompt (the one sent with every model call) is added h
 API slice exists.
 
 ## Where the AI was wrong and how it was fixed
+
+### Slice 1: workspace scaffold, shared configs, CI, hygiene gate
+
+- **A gate that could never fail.** The first hygiene script piped `git ls-files` into
+  `xargs grep`, discarded stderr and treated every nonzero exit as "no match". The review
+  reproduced an `xargs` exit code 123 followed by `hygiene: OK`. Fixed by scanning with `git grep`
+  directly and mapping exit codes explicitly (0 found, 1 clean, anything else is a scan error that
+  fails the gate), with negative tests for each path.
+- **A gate that leaked what it found.** The secret scan printed the matching lines, which would
+  copy a real key into CI logs. Fixed to print only `file:line`.
+- **Hooks rules skipped custom hooks.** The shared ESLint React config applied `react-hooks` rules
+  to `.tsx` files only, so a custom hook in a `.ts` file got no `rules-of-hooks` check. The review
+  proved it with a conditional `useEffect` probe. Fixed by applying the hooks rules to both
+  extensions and keeping the JSX-only rules separate.
+- **Tooling side effect.** Turborepo 2.11 writes an `AGENTS.md` file into the repository on
+  agent-driven runs; Claude noticed the untracked file and switched the `agentGuidance` option off
+  so nothing unexpected lands in commits.
+- **Plan inconsistency.** The plan named the third TypeScript config `worker.json` in one place and
+  `function.json` in two others; Claude picked the name the rest of the plan depended on and
+  flagged the discrepancy instead of guessing silently.
