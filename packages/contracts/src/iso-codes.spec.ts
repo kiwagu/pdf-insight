@@ -33,6 +33,11 @@ describe('ISO_4217_CODES', () => {
     expect(new Set(ISO_4217_CODES).size).toBe(ISO_4217_CODES.length);
     for (const code of ISO_4217_CODES) expect(code).toMatch(/^[A-Z]{3}$/);
   });
+  it('includes codes added by recent amendments, such as XAD, and the schema accepts them', () => {
+    expect(ISO_4217_CODES).toContain('XAD');
+    const currency = llmAnalysisSchema.shape.amounts.element.shape.currency;
+    expect(currency.safeParse('XAD').success).toBe(true);
+  });
   it('includes the currencies documents commonly use', () => {
     expect(ISO_4217_CODES).toEqual(expect.arrayContaining(MUST_HAVE_CURRENCIES));
   });
