@@ -41,6 +41,17 @@
         "eslint": "^10.0.0",
       },
     },
+    "packages/i18n": {
+      "name": "@pdf-insight/i18n",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@pdf-insight/eslint-config": "workspace:*",
+        "@pdf-insight/typescript-config": "workspace:*",
+        "eslint": "^10.0.0",
+        "typescript": "^6.0.3",
+        "vitest": "^5.0.0",
+      },
+    },
     "packages/typescript-config": {
       "name": "@pdf-insight/typescript-config",
       "version": "0.0.0",
@@ -128,6 +139,8 @@
     "@pdf-insight/contracts": ["@pdf-insight/contracts@workspace:packages/contracts"],
 
     "@pdf-insight/eslint-config": ["@pdf-insight/eslint-config@workspace:packages/eslint-config"],
+
+    "@pdf-insight/i18n": ["@pdf-insight/i18n@workspace:packages/i18n"],
 
     "@pdf-insight/typescript-config": ["@pdf-insight/typescript-config@workspace:packages/typescript-config"],
 
