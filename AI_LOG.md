@@ -207,3 +207,32 @@ structured output and the amount grounding work together.
   pass was Claude's addition to the planned checks.
 - **Bundle size.** pdf.js dominated the main chunk (about 900 kB); it is now loaded on the first
   upload instead of with the page, which cut the initial chunk by more than half.
+
+### Slice 8: agent rules and skills
+
+- **Documentation written for a tree that did not exist yet.** The rules and skills were drafted
+  in parallel with the API and web slices, so the first version described commands, paths and
+  workflow names that were still on unmerged branches. The review caught it; the fix was to hold
+  the branch until those slices landed, rebase it, and prove every path, script name, workflow name
+  and environment variable in the documents against the tree with a shell loop (102 references, all
+  resolved), not by reading them again.
+- **A release procedure with a missing step.** The release skill went from "review approved"
+  straight to the squash, as if the review verdict were the decision to land. It now spells out
+  three separate steps: the review verdict, the maintainer's deliberate landing on `main`, and the
+  publication of `main` as a further explicit action.
+
+### Slice 9: README, schema, screenshot, log completion
+
+- **The planning notes had drifted from the code.** While writing the README, Claude checked every
+  claim against the source and found the design notes stale in six places (local ports and file
+  names, what the warnings cover, the order of the history, the reason behind the grounding check,
+  a decision marked as pending that had long been taken). The README follows the code, and the
+  notes were corrected afterwards.
+- **A limitation the code did not announce.** Writing the known-limitations section exposed that
+  text-less pages beyond the five rendered for the model were skipped silently: the result for a
+  long scanned document looked complete. The follow-up fix adds a warning naming the skipped pages
+  to the result, so the user sees what was not read.
+- **Documentation gates.** Documentation has no unit tests, so the gates were a link check over
+  every relative link and path in the README and the log, a byte-for-byte check that the quoted
+  system prompt equals the one in the code, and a parse of the README's JSON example with the real
+  schema.
