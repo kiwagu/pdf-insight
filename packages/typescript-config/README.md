@@ -16,5 +16,6 @@ list. Type checking never emits files (`noEmit`); bundling is done by the build 
   runtime-independent packages.
 - `react.json`: extends `base.json` with the DOM libraries, the `react-jsx` transform and the
   `vite/client` types for the browser app.
-- `function.json`: extends `base.json` with the DOM libraries, which supply the web-standard
-  `Request`, `Response`, `Headers` and `fetch` types the serverless function's handler uses.
+- `function.json`: extends `base.json` with the DOM libraries, which supply web-standard globals:
+  `Request`, `Response`, `Headers` and `fetch` for the serverless function's handler, `Blob` and
+  `setTimeout` for the domain package that runs in both the browser and the function.
