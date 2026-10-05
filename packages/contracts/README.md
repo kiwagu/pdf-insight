@@ -40,7 +40,8 @@ and Deno.
   amounts in a currency that no longer exists, and that is not a model error, while an unknown code
   such as `ZZZ` still fails.
 - **JSON Schema**: `analysisResultJsonSchema()` returns the result schema as JSON Schema, for
-  documentation and for consumers outside TypeScript.
+  documentation and for consumers outside TypeScript; its output is committed as
+  `docs/analysis-result.schema.json` at the repository root.
 - **Ids**: `idRegistry` (prefixes `ana` for an analysis, `req` for a request),
   `createAnalysisId()`, `createRequestId()`, `isAnalysisId(value)`. `src/ids.ts` is the only
   module that imports `entity-id`; consumers receive plain functions. `meta.id` in the result is
