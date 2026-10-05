@@ -131,3 +131,24 @@ API slice exists.
   itself and adds a wildcard origin, which hides the function's own strict CORS behaviour; the
   function was verified by calling it directly, and the hosted gateway is checked once the project
   is deployed.
+
+### Slice 6: web core (extraction, client, history, state)
+
+- **Browser support the plan had not considered.** Claude noticed that the modern pdf.js build
+  calls very recent browser APIs without polyfills and that scanned pages in JBIG2 or JPEG 2000 need
+  WebAssembly decoders that are not served by default. The app now uses the legacy pdf.js build and
+  copies the decoder files into the published assets, with the worker and decoder URLs resolved
+  under the app's base path.
+- **Three defects the review reproduced.** Clearing the history after a storage quota failure left
+  the persisted entries behind; the request timeout stopped once response headers arrived, so a
+  stalled body could hang the analysis; and the payload guard counted characters instead of UTF-8
+  bytes, letting a document just over the server limit through. All three were fixed with
+  regression tests, and the guard now measures the exact JSON body the client sends.
+- **A test that passed against broken code.** The first regression test for the history defect
+  spied on the storage object directly, which jsdom treats as storing an item, so the test never
+  exercised the failure. Claude caught it, spied on the prototype instead and made sure the write
+  really failed before recording the failing run.
+- **Small plan corrections.** TypeScript 6 rejects the `baseUrl` option the plan used for the path
+  alias; the planned jsdom version lacked `Blob.arrayBuffer`; and the shadcn CLI for the Base UI
+  line generates a different `cn` dependency than the plan listed. Each was adjusted to what the
+  installed tools actually do.
