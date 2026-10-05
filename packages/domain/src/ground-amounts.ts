@@ -2,27 +2,40 @@ import type { LlmAnalysis } from '@pdf-insight/contracts';
 
 /**
  * One written number. An optional sign counts only when no letter or digit is glued to it, so
- * the hyphen in `10-20` is not a minus. The integer part is grouped by spaces (also no-break or
- * line breaks: a page's visual lines are joined with `\n`, and a paragraph can wrap inside an
- * amount), by dots or by commas, or not grouped at all. Every group after the first has exactly
- * three digits, and a decimal part of one or two digits ends the number, so neighbouring table
- * columns (`55 350,00 12 730,50`) stay separate numbers.
+ * the hyphen in `10-20` is not a minus. The integer part is grouped by a run of whitespace (no-break
+ * spaces and line breaks included: a page's visual lines are joined with `\n`, and a paragraph can
+ * wrap inside an amount), by dots or by commas, or not grouped at all. Every group after the first
+ * has exactly three digits, and a group that a percent or per mille sign follows is not taken, so
+ * `3 400 100%` reads as 3 400 and 100. A decimal part of one or two digits ends the number, so
+ * neighbouring table columns (`55 350,00 12 730,50`) stay separate numbers.
  */
 const NUMBER =
-  /(?:(?<![\p{L}\p{N}])[+-])?(?:\d{1,3}(?:[ \u00A0\u202F\n]\d{3})+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gu;
+  /(?:(?<![\p{L}\p{N}])[+-])?(?:\d{1,3}(?:[ \u00A0\u202F\t\r\n]+\d{3}(?![ \u00A0\u202F]?[%\u2030]))+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gu;
 
-/** The value of one NUMBER match: separators removed, a decimal comma read as a point. */
-function parseNumber(written: string): number {
+/**
+ * The values one NUMBER match can stand for: separators removed, a decimal comma read as a point.
+ * A decimal amount is one value. An integer run grouped by whitespace is read whole and then
+ * without its trailing groups one at a time (`3 400 100` gives 3400100, 3400 and 3): prefixes of
+ * integer runs are accepted because a run may be two adjacent integers; fragments of decimal
+ * amounts never are.
+ */
+function readNumber(written: string): number[] {
+  const sign = written.startsWith('-') ? -1 : 1;
   const unsigned = written.replace(/^[+-]/, '');
   const decimal = /[.,](\d{1,2})$/.exec(unsigned);
-  const integer = (decimal ? unsigned.slice(0, decimal.index) : unsigned).replace(/\D/g, '');
-  const value = Number(`${integer}.${decimal?.[1] ?? '0'}`);
-  return written.startsWith('-') ? -value : value;
+  if (decimal) {
+    const integer = unsigned.slice(0, decimal.index).replace(/\D/g, '');
+    return [sign * Number(`${integer}.${decimal[1]}`)];
+  }
+  const groups = unsigned.split(/\s+/).map((group) => group.replace(/\D/g, ''));
+  return groups.map(
+    (_, dropped) => sign * Number(groups.slice(0, groups.length - dropped).join('')),
+  );
 }
 
-/** The value of every number written in the text, exactly one per number, in text order. */
+/** The values of the numbers written in the text, in text order (see NUMBER and readNumber). */
 export function numericTokens(text: string): number[] {
-  return Array.from(text.matchAll(NUMBER), ([written]) => parseNumber(written));
+  return Array.from(text.matchAll(NUMBER)).flatMap(([written]) => readNumber(written));
 }
 
 /**

@@ -80,6 +80,24 @@ describe('groundAmounts', () => {
     expect(analysis.amounts.map((a) => a.value)).toEqual([184500]);
     expect(dropped).toBe(2);
   });
+  it('keeps an integer that a percentage column follows', () => {
+    const { analysis } = groundAmounts(
+      { ...base, amounts: [3400, 3400100].map((value) => amount(value)) },
+      'Kwota 3 400 100%',
+      [],
+    );
+    expect(analysis.amounts.map((a) => a.value)).toEqual([3400]);
+  });
+  it('grounds a decimal amount split by a run of whitespace, never its groups', () => {
+    for (const written of ['184  500,00', '184\r\n500,00', '184\t500,00']) {
+      const { analysis } = groundAmounts(
+        { ...base, amounts: [184500, 184, 500].map((value) => amount(value)) },
+        `Wynagrodzenie ${written} PLN`,
+        [],
+      );
+      expect(analysis.amounts.map((a) => a.value)).toEqual([184500]);
+    }
+  });
   it('keeps a negative amount only with its sign', () => {
     const { analysis } = groundAmounts(
       { ...base, amounts: [-240, 240].map((value) => amount(value)) },
@@ -116,7 +134,7 @@ describe('groundAmounts', () => {
 });
 
 describe('numericTokens', () => {
-  it('reads one value per written number', () => {
+  it('reads one value per written decimal amount', () => {
     expect(numericTokens('Wynagrodzenie 184 500,00 PLN')).toEqual([184500]);
     expect(numericTokens('184\u00A0500,00 i 12\u202F300,00')).toEqual([184500, 12300]);
     expect(numericTokens('Razem 55 350,00 12 730,50 68 080,50')).toEqual([55350, 12730.5, 68080.5]);
@@ -128,6 +146,20 @@ describe('numericTokens', () => {
   it('reads dot and comma thousands separators and a number wrapped onto the next line', () => {
     expect(numericTokens('184.500,00 zl; USD 12,300.00; (295\n200,00 zl)')).toEqual([
       184500, 12300, 295200,
+    ]);
+  });
+  it('ends a number before a group that a percent or per mille sign follows', () => {
+    expect(numericTokens('Kwota 3 400 100%')).toEqual([3400, 3, 100]);
+    expect(numericTokens('udzial 1 250 100 %')).toEqual([1250, 1, 100]);
+    expect(numericTokens('3 400 100\u2030')).toEqual([3400, 3, 100]);
+  });
+  it('reads an integer run whole and as each shorter prefix, since it may be two integers', () => {
+    expect(numericTokens('3 400 100')).toEqual([3400100, 3400, 3]);
+    expect(numericTokens('licencje 2 150 EUR')).toEqual([2150, 2]);
+  });
+  it('lets a run of any whitespace separate digit groups', () => {
+    expect(numericTokens('184  500,00 | 184\r\n500,00 | 184\t500,00')).toEqual([
+      184500, 184500, 184500,
     ]);
   });
 });

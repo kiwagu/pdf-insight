@@ -41,9 +41,13 @@ maxScannedPages }`.
     longer on its own, in which case that page becomes its own chunk.
   - `mergeAnalyses(partials)`: first summary, first non-null title and date, case-insensitive
     dedupe, at most 7 key points.
-  - `numericTokens(text)`: exactly one value per written number. It reads an optional sign, digit
-    groups of three separated by a space, no-break space, line break, dot or comma, and a decimal
-    part of one or two digits, so table columns printed side by side stay separate amounts.
+  - `numericTokens(text)`: the values of the numbers written in the text. A number has an
+    optional sign, digit groups of three separated by a run of whitespace, a dot or a comma, and a
+    decimal part of one or two digits; a group followed by `%` or a per mille sign is not taken.
+    A decimal amount gives exactly one value, so table columns printed side by side stay separate
+    amounts and the groups inside an amount are never read on their own. An integer run grouped by
+    whitespace also gives its shorter prefixes (`3 400 100` gives 3400100, 3400 and 3), because
+    such a run may be two adjacent integers.
   - `groundAmounts(analysis, fullText, scannedPages)`: keeps an amount whose value is among those
     numbers; one that is not is kept only when its `page` is a scanned page, or when it names no
     page and the document has scanned pages, since the text layer cannot confirm what a page
