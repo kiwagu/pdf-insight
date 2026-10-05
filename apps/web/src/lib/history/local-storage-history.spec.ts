@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HistoryEntry } from '@pdf-insight/domain';
 import { createLocalStorageHistory } from './local-storage-history';
 
@@ -27,6 +27,7 @@ const entry = (id: string, analyzedAt: string): HistoryEntry => ({
 
 describe('createLocalStorageHistory', () => {
   beforeEach(() => localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
   it('lists newest first and survives a reload', () => {
     const h = createLocalStorageHistory(localStorage);
     h.save(entry('ana_1', '2026-10-05T10:00:00.000Z'));
@@ -51,5 +52,23 @@ describe('createLocalStorageHistory', () => {
     const memory = createLocalStorageHistory(null);
     memory.save(entry('ana_9', '2026-10-05T10:00:00.000Z'));
     expect(memory.list()).toHaveLength(1);
+  });
+  it('keeps the session view after a quota failure and still clears what was persisted', () => {
+    const h = createLocalStorageHistory(localStorage);
+    h.save(entry('ana_1', '2026-10-05T10:00:00.000Z'));
+    // Spy on the prototype: assigning to a Storage instance would store an item instead.
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError');
+    });
+    h.save(entry('ana_2', '2026-10-05T11:00:00.000Z'));
+    expect(h.list().map((e) => e.id)).toEqual(['ana_2', 'ana_1']);
+    expect(
+      createLocalStorageHistory(localStorage)
+        .list()
+        .map((e) => e.id),
+    ).toEqual(['ana_1']);
+    h.clear();
+    expect(h.list()).toEqual([]);
+    expect(createLocalStorageHistory(localStorage).list()).toEqual([]);
   });
 });

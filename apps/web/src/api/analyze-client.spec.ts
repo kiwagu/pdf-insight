@@ -86,4 +86,20 @@ describe('createHttpAnalyzer', () => {
       createHttpAnalyzer('https://api.example/analyze', { fetchImpl, timeoutMs: 10 }).analyze(doc),
     ).rejects.toMatchObject({ code: 'network' });
   });
+  it('keeps the timeout armed while the body is read', async () => {
+    const fetchImpl = vi.fn().mockImplementation((_url: string, init: RequestInit) =>
+      Promise.resolve({
+        status: 200,
+        json: () =>
+          new Promise((_, reject) =>
+            init.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            ),
+          ),
+      }),
+    );
+    await expect(
+      createHttpAnalyzer('https://api.example/analyze', { fetchImpl, timeoutMs: 20 }).analyze(doc),
+    ).rejects.toMatchObject({ code: 'network', retryable: true });
+  });
 });

@@ -15,14 +15,15 @@ export function createLocalStorageHistory(
 ): AnalysisHistory {
   const key = options.key ?? 'pdf-insight.history.v1';
   const max = options.max ?? 10;
-  // Once a write to storage fails, this session keeps its history in memory only.
-  let backend = storage;
   let memory: HistoryEntry[] = [];
+  // After a failed write the stored copy is stale, so this session reads from memory until a
+  // write succeeds again. Every write still goes to storage, so a clear is never lost.
+  let memoryOnly = storage === null;
 
   const read = (): HistoryEntry[] => {
-    if (!backend) return memory;
+    if (!storage || memoryOnly) return memory;
     try {
-      const raw = backend.getItem(key);
+      const raw = storage.getItem(key);
       if (!raw) return [];
       const parsed = z.array(entrySchema).safeParse(JSON.parse(raw));
       return parsed.success ? parsed.data : [];
@@ -32,12 +33,14 @@ export function createLocalStorageHistory(
   };
   const write = (entries: HistoryEntry[]): void => {
     memory = entries;
-    if (!backend) return;
+    if (!storage) return;
     try {
-      backend.setItem(key, JSON.stringify(entries));
+      if (entries.length === 0) storage.removeItem(key);
+      else storage.setItem(key, JSON.stringify(entries));
+      memoryOnly = false;
     } catch {
       // quota exceeded or private mode: the in-memory copy serves the rest of this session
-      backend = null;
+      memoryOnly = true;
     }
   };
   const sorted = (entries: HistoryEntry[]) =>

@@ -24,4 +24,29 @@ describe('payload guard', () => {
     };
     expect(exceedsPayloadCap(doc)).toBe(true);
   });
+  it('counts UTF-8 bytes, not characters', () => {
+    const withText = (text: string) => ({
+      fileName: 'a.pdf',
+      pages: 1,
+      pageTexts: [text],
+      scannedPages: [],
+    });
+    const polish = 'zażółć gęślą jaźń';
+    const ascii = 'zazolc gesla jazn';
+    expect(polish.length).toBe(ascii.length);
+    expect(estimateRequestBytes(withText(polish)) - estimateRequestBytes(withText(ascii))).toBe(9);
+  });
+  it('allows a document just under the cap and refuses it one 2-byte character later', () => {
+    const withText = (text: string) => ({
+      fileName: 'a.pdf',
+      pages: 1,
+      pageTexts: [text],
+      scannedPages: [],
+    });
+    const overhead = estimateRequestBytes(withText(''));
+    const underCap = 'a'.repeat(MAX_REQUEST_BYTES - overhead - 1);
+    expect(estimateRequestBytes(withText(underCap))).toBe(MAX_REQUEST_BYTES - 1);
+    expect(exceedsPayloadCap(withText(underCap))).toBe(false);
+    expect(exceedsPayloadCap(withText(`${underCap}ż`))).toBe(true);
+  });
 });
