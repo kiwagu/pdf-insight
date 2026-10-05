@@ -1,0 +1,21 @@
+{
+  "name": "@pdf-insight/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . && bun src/validate.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@pdf-insight/eslint-config": "workspace:*",
+    "@pdf-insight/typescript-config": "workspace:*",
+    "eslint": "^10.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.0"
+  }
+}
