@@ -128,6 +128,39 @@ describe('analyzeText', () => {
     ).rejects.toBeInstanceOf(ModelOutputInvalidError);
     expect(analyzeChunk).toHaveBeenCalledTimes(2);
   });
+  it('retries once when an amount or a date cites a page the document does not have', async () => {
+    const badAmount = llm({
+      amounts: [{ value: 184500, currency: 'PLN', context: 'x', page: 999 }],
+    });
+    const badDate = llm({ dates: [{ date: '2026-03-12', context: 'x', page: 2 }] });
+    for (const first of [badAmount, badDate]) {
+      const analyzeChunk = vi
+        .fn<ModelPort['analyzeChunk']>()
+        .mockResolvedValueOnce(first)
+        .mockResolvedValue(llm());
+      const result = await analyzeText(
+        { fileName: 'x.pdf', pages: 1, pageTexts: ['Wynagrodzenie 184 500 zl'], scannedPages: [] },
+        deps({ analyzeChunk, reduce: vi.fn() }),
+      );
+      expect(analyzeChunk).toHaveBeenCalledTimes(2);
+      expect(result.amounts[0]?.page).toBe(1);
+      expect(result.meta.warnings).toEqual([]);
+    }
+  });
+  it('fails with invalid output when the retry still cites a page outside the document', async () => {
+    const analyzeChunk = vi
+      .fn<ModelPort['analyzeChunk']>()
+      .mockResolvedValue(
+        llm({ amounts: [{ value: 184500, currency: 'PLN', context: 'x', page: 999 }] }),
+      );
+    await expect(
+      analyzeText(
+        { fileName: 'x.pdf', pages: 1, pageTexts: ['Wynagrodzenie 184 500 zl'], scannedPages: [] },
+        deps({ analyzeChunk, reduce: vi.fn() }),
+      ),
+    ).rejects.toBeInstanceOf(ModelOutputInvalidError);
+    expect(analyzeChunk).toHaveBeenCalledTimes(2);
+  });
   it('holds the reduce summary to the sentence count but not the summaries of the parts', async () => {
     const analyzeChunk = vi
       .fn<ModelPort['analyzeChunk']>()

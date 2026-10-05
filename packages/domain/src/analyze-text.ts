@@ -75,13 +75,22 @@ async function mapLimited<T, R>(
 /**
  * Checks a model answer inside the retry, so a failure triggers the one retry. The answer for the
  * whole document (the single chunk, or the reduce step) carries the summary the user reads and is
- * held to 3 to 5 sentences; a part's summary only feeds the reduce step and is not counted.
+ * held to 3 to 5 sentences; a part's summary only feeds the reduce step and is not counted. Every
+ * page an amount or a date cites must exist in the document: a page beyond the last one is a made-up
+ * source, which the model is not allowed to produce.
  */
-function validated(output: LlmAnalysis, whole: boolean): LlmAnalysis {
+function validated(output: LlmAnalysis, whole: boolean, pages: number): LlmAnalysis {
   const parsed = whole
     ? llmFinalAnalysisSchema.safeParse(output)
     : llmAnalysisSchema.safeParse(output);
   if (!parsed.success) throw new ModelOutputInvalidError(parsed.error.message);
+  const cited = [...parsed.data.amounts, ...parsed.data.dates].map((item) => item.page);
+  const outside = cited.find((page) => page !== null && page > pages);
+  if (outside !== undefined) {
+    throw new ModelOutputInvalidError(
+      `page ${outside} cited, but the document has ${pages} page(s)`,
+    );
+  }
   return parsed.data;
 }
 
@@ -110,6 +119,7 @@ export async function analyzeText(
           options,
         ),
         chunks.length === 1,
+        request.pages,
       ),
     ),
   );
@@ -125,6 +135,7 @@ export async function analyzeText(
                 options,
               ),
               true,
+              request.pages,
             ),
           ),
           ...partials,
