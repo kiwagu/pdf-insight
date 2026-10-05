@@ -1,0 +1,25 @@
+{
+  "name": "@pdf-insight/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "entity-id": "^1.2.0",
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@pdf-insight/eslint-config": "workspace:*",
+    "@pdf-insight/typescript-config": "workspace:*",
+    "eslint": "^10.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.0"
+  }
+}
