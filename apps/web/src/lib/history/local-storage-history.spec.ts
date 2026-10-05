@@ -15,7 +15,7 @@ const entry = (id: string, analyzedAt: string): HistoryEntry => ({
       title: null,
       date: null,
     },
-    summary: 's',
+    summary: 'Krotki wpis. Dotyczy testu. Trzy zdania.',
     keyPoints: [],
     entities: { organizations: [], people: [] },
     amounts: [],

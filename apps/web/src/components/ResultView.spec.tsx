@@ -15,7 +15,11 @@ const show = (r: AnalysisResult) =>
 describe('ResultView', () => {
   it('renders summary, key points, entities, amounts, dates, keywords and meta', () => {
     show(result);
-    expect(screen.getByText('Umowa dotyczy wdrozenia CRM.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Umowa dotyczy wdrozenia CRM. Trwa 24 miesiace. Wynagrodzenie jest ryczaltowe.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Okres 24 miesiace')).toBeInTheDocument();
     expect(screen.getByText('Nordwave Logistics sp. z o.o.')).toBeInTheDocument();
     expect(screen.getByText('Anna Kowalczyk')).toBeInTheDocument();

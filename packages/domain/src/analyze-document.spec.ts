@@ -6,7 +6,7 @@ import type { AnalysisHistory, DocumentAnalyzer, TextExtractor } from './ports.t
 
 const result: AnalysisResult = {
   document: { fileName: 'a.pdf', pages: 1, language: 'pl', type: 'inne', title: null, date: null },
-  summary: 'Krotki dokument.',
+  summary: 'Krotki dokument. Dotyczy wsparcia. Oplata jest stala.',
   keyPoints: [],
   entities: { organizations: [], people: [] },
   amounts: [],

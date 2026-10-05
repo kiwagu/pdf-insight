@@ -18,7 +18,7 @@ const okBody = {
       title: null,
       date: null,
     },
-    summary: 'Hello.',
+    summary: 'Hello there. This is a test. It has three sentences.',
     keyPoints: [],
     entities: { organizations: [], people: [] },
     amounts: [],
@@ -60,7 +60,7 @@ describe('createHttpAnalyzer', () => {
     const result = await createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(
       doc,
     );
-    expect(result.summary).toBe('Hello.');
+    expect(result.summary).toBe('Hello there. This is a test. It has three sentences.');
     const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.example/analyze');
     expect(init.method).toBe('POST');

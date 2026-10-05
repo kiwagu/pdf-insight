@@ -131,3 +131,17 @@ describe('llmAnalysisSchema', () => {
     expect(llmFinalAnalysisSchema.safeParse(answer).success).toBe(true);
   });
 });
+
+describe('source pages against the document range', () => {
+  it('rejects an amount or a date attributed to a page the document does not have', () => {
+    const amounts = [{ ...valid.amounts[0]!, page: 999 }];
+    expect(analysisResultSchema.safeParse({ ...valid, amounts }).success).toBe(false);
+    const dates = [{ ...valid.dates[0]!, page: valid.document.pages + 1 }];
+    expect(analysisResultSchema.safeParse({ ...valid, dates }).success).toBe(false);
+  });
+  it('accepts the last page and a null page', () => {
+    const amounts = [{ ...valid.amounts[0]!, page: valid.document.pages }];
+    const dates = [{ ...valid.dates[0]!, page: null }];
+    expect(analysisResultSchema.safeParse({ ...valid, amounts, dates }).success).toBe(true);
+  });
+});
