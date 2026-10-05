@@ -88,3 +88,20 @@ API slice exists.
   silent, mismatches fail loudly.
 - **Drafting shortcut caught.** The plan's Polish catalog was drafted without diacritics; Claude
   wrote proper Polish and corrected a typo in one value.
+
+### Slice 3: domain package (ports, chunking, grounding, use cases)
+
+- **The grounding design had two holes.** The plan grounded every amount against the PDF's text
+  layer. Claude noticed that this would silently drop every amount read from a scanned page (an
+  annex on a scanned page can change a fee, and such a page has no text layer), and that a sentence
+  injected into the text is literally present in it, so grounding could never remove an amount it
+  names. Decisions: amounts and dates now carry the page they were found on, grounding keeps items
+  attributed to a scanned page, and resistance to injected instructions is the prompt's job, not the
+  number check's.
+- **A number tokenizer that fused table rows.** On a real contract the planned tokenizer missed 11
+  of 44 genuine amounts: rows such as `55 350,00 12 730,50 68 080,50` were read as one number.
+  Claude measured it, rewrote the tokenizer to read runs of digit groups, and added a regression
+  test (0 of 44 missed).
+- **Type-environment details the plan got wrong.** The package needed the DOM library for `Blob`
+  and `setTimeout`, and port interfaces declared as methods tripped the `unbound-method` lint rule in
+  tests; both were adjusted with the same public names.
