@@ -34,7 +34,8 @@ on request, the choice kept in `localStorage`).
 
 ## Layout
 
-- `src/app/`: the app (`App.tsx`), the state reducer and the dependency container.
+- `src/app/`: the app (`App.tsx`), the `useAnalysis` hook that runs an upload through the
+  use case, the state reducer and the dependency container.
 - `src/components/`: the views built on the primitives: the drop zone, the progress and error
   panels, the result view with its tables, the JSON panel, the analysis details, the history
   list, the language toggle and the page layout.

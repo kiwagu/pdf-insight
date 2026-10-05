@@ -10,30 +10,12 @@ import {
 } from '@pdf-insight/domain';
 import { describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../lib/i18n';
-import { shortResult as result } from '../test/fixtures';
+import { entryOf, extracted, fakeContainer, pdfWithHeldCheck } from '../test/fake-container';
+import { contractResult, shortResult as result } from '../test/fixtures';
 import { App } from './App';
 import type { Container } from './container';
 
-const extracted: ExtractedDocument = {
-  fileName: 'a.pdf',
-  pages: 1,
-  pageTexts: ['hello world, this document has a real text layer'],
-  scannedPages: [],
-};
-
-const container = (
-  analyze = vi.fn<DocumentAnalyzer['analyze']>().mockResolvedValue(result),
-  entries: HistoryEntry[] = [],
-  extract = vi.fn<TextExtractor['extract']>().mockResolvedValue(extracted),
-): Container => ({
-  extractor: { extract },
-  analyzer: { analyze },
-  history: {
-    list: vi.fn<Container['history']['list']>().mockReturnValue(entries),
-    save: vi.fn<Container['history']['save']>(),
-    clear: vi.fn<Container['history']['clear']>(),
-  },
-});
+const container = fakeContainer;
 
 const pdf = new File(['%PDF-1.4'], 'a.pdf', { type: 'application/pdf' });
 
@@ -108,6 +90,19 @@ describe('App', () => {
     expect(screen.queryByText('Wynik second.pdf')).not.toBeInTheDocument();
     expect(extract).toHaveBeenCalledTimes(1);
     expect(analyze).toHaveBeenCalledTimes(1);
+  });
+  it('disables the drop zone and the history while a picked file is checked', async () => {
+    const c = container(undefined, [entryOf(contractResult)]);
+    renderApp(c);
+    const { file, release } = pdfWithHeldCheck();
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    expect(screen.getByRole('button', { name: /PDF/ })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: /umowa\.pdf/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Wyczyść historię' })).toBeDisabled();
+    release();
+    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    expect(c.analyzer.analyze).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /umowa\.pdf/ })).toBeEnabled();
   });
   it('shows a retryable error with a retry button and retries the same document', async () => {
     const analyze = vi
