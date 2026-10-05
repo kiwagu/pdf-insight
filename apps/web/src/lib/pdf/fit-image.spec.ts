@@ -43,6 +43,18 @@ describe('encodeWithinCap', () => {
     ]);
     expect(render.mock.calls.map(([scale]) => scale)).toEqual([1.5, 1]);
   });
+  it('skips an empty encoding and goes on with the next step', async () => {
+    // A canvas the browser could not allocate encodes to nothing at the largest scale.
+    const { render, encodes } = fakePage((scale, quality) =>
+      scale === 1.5 ? 0 : Math.round(scale * quality * 10),
+    );
+    await expect(encodeWithinCap(render, 100)).resolves.toHaveLength(8);
+    expect(encodes.slice(-1)).toEqual([[1, 0.8]]);
+  });
+  it('gives up with null when every encoding is empty', async () => {
+    const { render } = fakePage(() => 0);
+    await expect(encodeWithinCap(render, 100)).resolves.toBeNull();
+  });
   it('gives up with null when even the smallest rendering is too big', async () => {
     const { render } = fakePage(() => 1_000);
     await expect(encodeWithinCap(render, 100)).resolves.toBeNull();

@@ -8,15 +8,15 @@ export type RenderAt = (scale: number) => Promise<(quality: number) => string>;
 
 /**
  * Encodes a page image within `maxLength` base64 characters: the JPEG quality goes down first,
- * since re-encoding is cheap, and only then the render scale. Null when even the smallest
- * rendering is too big, which takes a page far larger than any real document page.
+ * since re-encoding is cheap, and only then the render scale. An empty encoding (a canvas the
+ * browser could not allocate) never counts as a fit. Null when no step gives a usable image.
  */
 export async function encodeWithinCap(render: RenderAt, maxLength: number): Promise<string | null> {
   for (const scale of RENDER_SCALES) {
     const encode = await render(scale);
     for (const quality of JPEG_QUALITIES) {
       const image = encode(quality);
-      if (image.length <= maxLength) return image;
+      if (image.length > 0 && image.length <= maxLength) return image;
     }
   }
   return null;
