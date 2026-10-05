@@ -6,6 +6,7 @@ import { groundAmounts } from './ground-amounts.ts';
 import { mergeAnalyses } from './merge-analyses.ts';
 import type { ModelPort } from './ports.ts';
 import { withOneRetry } from './retry.ts';
+import { isScannedPage } from './scanned-page.ts';
 
 export interface AnalyzeTextDeps {
   model: ModelPort;
@@ -17,6 +18,24 @@ export interface AnalyzeTextDeps {
 }
 
 const PARALLEL = 3;
+const MAX_LISTED_SKIPPED_PAGES = 10;
+
+/**
+ * The 1-based numbers of the pages without a text layer that reached the model neither as text
+ * nor as a scanned page image (the client renders only a capped number of them), ascending.
+ */
+function skippedTextlessPages(request: AnalyzeRequest): number[] {
+  const imaged = new Set(request.scannedPages.map((s) => s.page));
+  return request.pageTexts
+    .map((text, i) => (isScannedPage(text) && !imaged.has(i + 1) ? i + 1 : null))
+    .filter((page): page is number => page !== null);
+}
+
+function skippedPagesWarning(skipped: number[]): string {
+  const listed = skipped.slice(0, MAX_LISTED_SKIPPED_PAGES).join(', ');
+  const more = skipped.length > MAX_LISTED_SKIPPED_PAGES ? '...' : '';
+  return `${skipped.length} page(s) without a text layer were not analysed: ${listed}${more}`;
+}
 
 /**
  * Runs `fn` over `items` with at most `limit` calls in flight, keeping the input order. After the
@@ -95,8 +114,11 @@ export async function analyzeText(
   const scannedPages = request.scannedPages.map((s) => s.page);
   const fullText = request.pageTexts.join('\n');
   const { analysis, dropped } = groundAmounts(consolidated, fullText, scannedPages);
-  const warnings =
-    dropped > 0 ? [`${dropped} amount(s) dropped: value not found in the document text`] : [];
+  const skipped = skippedTextlessPages(request);
+  const warnings = [
+    ...(dropped > 0 ? [`${dropped} amount(s) dropped: value not found in the document text`] : []),
+    ...(skipped.length > 0 ? [skippedPagesWarning(skipped)] : []),
+  ];
   const finished = deps.now();
 
   return analysisResultSchema.parse({
