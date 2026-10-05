@@ -31,9 +31,15 @@ maxScannedPages }`.
   `ChunkInput` and `ReduceInput`.
 - **Values**: `ExtractedDocument`, `Chunk`, `HistoryEntry`, `Stage`, constants
   `DEFAULT_MAX_CHUNK_CHARS` (60 000) and `SCANNED_PAGE_MIN_CHARS` (20).
-- **Errors**: `AnalysisError` (`code`, `message`, `retryable`; codes are the API error codes plus
-  `invalid_file`, `too_large`, `extraction_failed`, `network`, `invalid_response`), type
-  `AnalysisErrorCode`, `ModelOutputInvalidError` (always retryable) and `ModelUpstreamError`.
+- **Errors**: `AnalysisError` (`code`, `message`, `retryable`, optional `params` for the localized
+  message; codes are the API error codes plus `invalid_file`, `too_large`, `page_too_large`,
+  `ocr_limit`, `extraction_failed`, `network`, `invalid_response`), type `AnalysisErrorCode`,
+  `ModelOutputInvalidError` (always retryable), `ModelUpstreamError` and `AnalysisTimeoutError`.
+- **Deadline**: `Deadline`, `createDeadline(now, budgetMs)`, `NO_DEADLINE`, `MODEL_CALL_TIMEOUT_MS`
+  (60 000) and `MIN_RETRY_BUDGET_MS` (20 000). `ModelPort` calls take `(input, { timeoutMs })`,
+  `withOneRetry` takes `{ deadline }` and `analyzeText` deps take `deadline`, so every model call,
+  the retry and the reduce share one budget; `withinDeadline(work, deadline, onExpire?)` bounds
+  any other await (the API uses it for the body read and the rate-limit call).
 - **Pure functions**:
   - `isScannedPage(text)`: fewer than 20 non-whitespace characters.
   - `chunkPages(pageTexts, { maxChars })`: labels each page as `[page N]`, splits only between
