@@ -80,13 +80,21 @@ describe('groundAmounts', () => {
     expect(analysis.amounts.map((a) => a.value)).toEqual([184500]);
     expect(dropped).toBe(2);
   });
-  it('keeps an integer that a percentage column follows', () => {
-    const { analysis } = groundAmounts(
-      { ...base, amounts: [3400, 3400100].map((value) => amount(value)) },
+  it('keeps an integer that a percentage column follows, whatever whitespace precedes the sign', () => {
+    for (const text of [
       'Kwota 3 400 100%',
-      [],
-    );
-    expect(analysis.amounts.map((a) => a.value)).toEqual([3400]);
+      'Kwota 3 400 100 %',
+      'Kwota 3 400 100  %',
+      'Kwota 3 400 100\t%',
+      'Kwota 3 400 100\r\n\u2030',
+    ]) {
+      const { analysis } = groundAmounts(
+        { ...base, amounts: [3400, 3400100].map((value) => amount(value)) },
+        text,
+        [],
+      );
+      expect(analysis.amounts.map((a) => a.value)).toEqual([3400]);
+    }
   });
   it('grounds a decimal amount split by a run of whitespace, never its groups', () => {
     for (const written of ['184  500,00', '184\r\n500,00', '184\t500,00']) {
@@ -152,6 +160,9 @@ describe('numericTokens', () => {
     expect(numericTokens('Kwota 3 400 100%')).toEqual([3400, 3, 100]);
     expect(numericTokens('udzial 1 250 100 %')).toEqual([1250, 1, 100]);
     expect(numericTokens('3 400 100\u2030')).toEqual([3400, 3, 100]);
+    expect(numericTokens('3 400 100  %')).toEqual([3400, 3, 100]);
+    expect(numericTokens('3 400 100\t%')).toEqual([3400, 3, 100]);
+    expect(numericTokens('3 400 100\r\n\u2030')).toEqual([3400, 3, 100]);
   });
   it('reads an integer run whole and as each shorter prefix, since it may be two integers', () => {
     expect(numericTokens('3 400 100')).toEqual([3400100, 3400, 3]);
