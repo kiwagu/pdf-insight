@@ -136,6 +136,63 @@ describe('analyzeText', () => {
     expect(result.amounts).toEqual([annex]);
     expect(result.meta.warnings).toEqual([]);
   });
+  it('warns about text-less pages that were not sent as scanned page images', async () => {
+    const model: ModelPort = { analyzeChunk: vi.fn().mockResolvedValue(llm()), reduce: vi.fn() };
+    const text = 'Wynagrodzenie 184 500,00 zl';
+    const result = await analyzeText(
+      {
+        fileName: 'x.pdf',
+        pages: 8,
+        pageTexts: [text, text, text, text, '', ' ', '', '\n'],
+        scannedPages: [{ page: 5, imageJpegBase64: 'AAAA' }],
+      },
+      { ...deps(model), maxChunkChars: 1_000 },
+    );
+    expect(result.meta.warnings).toEqual([
+      '3 page(s) without a text layer were not analysed: 6, 7, 8',
+    ]);
+  });
+  it('lists at most ten skipped text-less pages, after the dropped-amounts warning', async () => {
+    const model: ModelPort = {
+      analyzeChunk: vi
+        .fn()
+        .mockResolvedValue(
+          llm({ amounts: [{ value: 1, currency: 'PLN', context: 'wartosc umowy', page: 1 }] }),
+        ),
+      reduce: vi.fn(),
+    };
+    const pageTexts = ['Wynagrodzenie 184 500,00 zl', ...Array.from({ length: 13 }, () => '')];
+    const result = await analyzeText(
+      {
+        fileName: 'x.pdf',
+        pages: 14,
+        pageTexts,
+        scannedPages: [{ page: 2, imageJpegBase64: 'AAAA' }],
+      },
+      { ...deps(model), maxChunkChars: 1_000 },
+    );
+    expect(result.meta.warnings).toEqual([
+      '1 amount(s) dropped: value not found in the document text',
+      '12 page(s) without a text layer were not analysed: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12...',
+    ]);
+  });
+  it('records no skipped-page warning when every text-less page was sent as an image', async () => {
+    const model: ModelPort = { analyzeChunk: vi.fn().mockResolvedValue(llm()), reduce: vi.fn() };
+    const text = 'Wynagrodzenie 184 500,00 zl';
+    const result = await analyzeText(
+      {
+        fileName: 'x.pdf',
+        pages: 4,
+        pageTexts: [text, '', text, ''],
+        scannedPages: [
+          { page: 2, imageJpegBase64: 'AAAA' },
+          { page: 4, imageJpegBase64: 'BBBB' },
+        ],
+      },
+      { ...deps(model), maxChunkChars: 1_000 },
+    );
+    expect(result.meta.warnings).toEqual([]);
+  });
   it('starts no further chunk once one has failed for good', async () => {
     let release = (): void => undefined;
     const gate = new Promise<void>((resolve) => {
