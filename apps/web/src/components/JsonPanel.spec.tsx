@@ -38,5 +38,20 @@ describe('JsonPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Kopiuj' }));
     expect(await navigator.clipboard.readText()).toBe(JSON.stringify(result, null, 2));
     expect(screen.getByRole('button', { name: 'Skopiowano' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+  it('says so when the clipboard refuses the text', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));
+    render(
+      <I18nProvider>
+        <JsonPanel result={result} />
+      </I18nProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Kopiuj' }));
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Nie udało się skopiować. Zaznacz tekst i skopiuj ręcznie.',
+    );
+    expect(screen.getByRole('button', { name: 'Kopiuj' })).toBeInTheDocument();
   });
 });

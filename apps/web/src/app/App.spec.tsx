@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AnalysisResult } from '@pdf-insight/contracts';
 import {
@@ -75,8 +75,39 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Analizuję dokument'));
     expect(screen.getByRole('status')).toHaveTextContent('Stron: 1');
     finish(result);
-    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
-    expect(screen.getByText('Krotki dokument.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    expect(screen.queryByText(/Analizuję dokument/)).not.toBeInTheDocument();
+  });
+  it('ignores a second file picked while the first is still being checked', async () => {
+    const deferred = new Map<string, (r: AnalysisResult) => void>();
+    const analyze = vi.fn<DocumentAnalyzer['analyze']>(
+      (doc) => new Promise((resolve) => deferred.set(doc.fileName, resolve)),
+    );
+    const extract = vi.fn<TextExtractor['extract']>((file) =>
+      Promise.resolve({ ...extracted, fileName: (file as File).name }),
+    );
+    renderApp(container(analyze, [], extract));
+    const input = screen.getByTestId('file-input');
+    const a = new File(['%PDF-1.4'], 'first.pdf', { type: 'application/pdf' });
+    const b = new File(['%PDF-1.4'], 'second.pdf', { type: 'application/pdf' });
+    // Both picks land before the first file's async check has finished.
+    fireEvent.change(input, { target: { files: [a] } });
+    fireEvent.change(input, { target: { files: [b] } });
+    await waitFor(() => expect(deferred.size).toBeGreaterThan(0));
+    // Settle in the worst order: the later document first, the earlier one last.
+    const done = (name: string) => ({
+      ...result,
+      summary: `Wynik ${name}`,
+      document: { ...result.document, fileName: name },
+    });
+    deferred.get('second.pdf')?.(done('second.pdf'));
+    await act(() => Promise.resolve());
+    deferred.get('first.pdf')?.(done('first.pdf'));
+    await act(() => Promise.resolve());
+    await waitFor(() => expect(screen.getByText('Wynik first.pdf')).toBeInTheDocument());
+    expect(screen.queryByText('Wynik second.pdf')).not.toBeInTheDocument();
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(analyze).toHaveBeenCalledTimes(1);
   });
   it('shows a retryable error with a retry button and retries the same document', async () => {
     const analyze = vi

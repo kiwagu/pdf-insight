@@ -46,10 +46,17 @@ on request, the choice kept in `localStorage`).
 
 ## Configuration
 
-`VITE_API_URL` is the full URL of the analyze endpoint and is read at build time. The app is
-served under the `/pdf-insight/` base path. The `deploy-web` workflow builds it with the
-`VITE_API_URL` repository variable and publishes `dist/` to GitHub Pages after the repository
-gates pass.
+Both variables are read at build time:
+
+| Variable              | Required | Meaning                                                                                                  |
+| --------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL`        | yes      | Full URL of the analyze endpoint.                                                                        |
+| `VITE_REPOSITORY_URL` | no       | Source repository linked in the footer; without it the footer shows no link (the usual local dev setup). |
+
+The app is served under the `/pdf-insight/` base path. The `deploy-web` workflow builds it with
+the `VITE_API_URL` repository variable and `VITE_REPOSITORY_URL` taken from the GitHub context
+(`github.server_url`/`github.repository`), and publishes `dist/` to GitHub Pages after the
+repository gates pass.
 
 ## Accessibility and layout
 

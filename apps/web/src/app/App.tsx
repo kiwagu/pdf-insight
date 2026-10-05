@@ -32,9 +32,17 @@ export function App({ container }: { container?: Container }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [history, setHistory] = useState<HistoryEntry[]>(() => deps.history.list());
   const lastFile = useRef<File | null>(null);
+  // Taken synchronously before the first await: a second pick that lands while the first file is
+  // still being checked is ignored instead of starting a parallel analysis.
+  const inFlight = useRef(false);
+  // Only the newest run may report; a completion from an older one is dropped.
+  const currentRun = useRef(0);
 
   const run = useCallback(
     async (file: File) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      const id = ++currentRun.current;
       lastFile.current = file;
       try {
         const invalid = await validatePdfFile(file);
@@ -52,18 +60,27 @@ export function App({ container }: { container?: Container }) {
           },
           analyzer: deps.analyzer,
           history: deps.history,
-          onStage: (stage, detail) => dispatch({ type: 'stage', stage, pages: detail?.pages }),
+          onStage: (stage, detail) => {
+            if (id === currentRun.current) dispatch({ type: 'stage', stage, pages: detail?.pages });
+          },
           maxScannedPages: MAX_SCANNED_PAGES,
         });
-        dispatch({ type: 'done', result });
+        // The use case has saved the entry already, so the list is refreshed either way.
         setHistory(deps.history.list());
+        if (id === currentRun.current) dispatch({ type: 'done', result });
       } catch (error) {
-        dispatch({ type: 'fail', error: toAnalysisError(error) });
+        if (id === currentRun.current) dispatch({ type: 'fail', error: toAnalysisError(error) });
+      } finally {
+        inFlight.current = false;
       }
     },
     [deps],
   );
-  const reset = () => dispatch({ type: 'reset' });
+  // Leaving a view supersedes whatever run produced it.
+  const reset = () => {
+    currentRun.current += 1;
+    dispatch({ type: 'reset' });
+  };
 
   useEffect(() => {
     document.title = t('app.title');
@@ -128,6 +145,7 @@ export function App({ container }: { container?: Container }) {
         entries={history}
         disabled={busy}
         onRestore={(entry) => {
+          currentRun.current += 1;
           dispatch({ type: 'restore', result: entry.result });
           // Also when a result was already shown: the view stays the same, its content does not.
           viewRef.current?.focus();

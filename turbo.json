@@ -8,5 +8,5 @@
     "test": { "cache": false },
     "dev": { "cache": false, "persistent": true }
   },
-  "globalEnv": ["CI", "VITE_API_URL"]
+  "globalEnv": ["CI", "VITE_API_URL", "VITE_REPOSITORY_URL"]
 }

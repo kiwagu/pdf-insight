@@ -55,6 +55,7 @@
   "json.title": "JSON",
   "json.copy": "Copy",
   "json.copied": "Copied",
+  "json.copyFailed": "Copy failed. Select the text and copy it manually.",
   "json.download": "Download .json",
   "meta.title": "Analysis details",
   "meta.model": "Model",

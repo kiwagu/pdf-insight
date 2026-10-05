@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { useT } from '../lib/i18n';
-import { repositoryUrl } from '../lib/repository-url';
 import { LanguageToggle } from './LanguageToggle';
 import { Separator } from './ui/separator';
 
 export function Layout({ children }: { children: ReactNode }) {
   const t = useT();
-  const repo = repositoryUrl(window.location);
+  // Set at build time (the Pages workflow passes the repository URL); local builds show no link.
+  const repo = import.meta.env.VITE_REPOSITORY_URL;
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-4xl flex-col px-4 sm:px-6">
       <header className="flex items-start justify-between gap-4 py-6">
