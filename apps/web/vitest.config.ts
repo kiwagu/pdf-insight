@@ -6,5 +6,9 @@ export default defineConfig({
   plugins: [react()],
   // Same `@/` alias as the app build: generated ui primitives import each other through it.
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  test: { environment: 'jsdom', include: ['src/**/*.spec.ts', 'src/**/*.spec.tsx'] },
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.ts', 'src/**/*.spec.tsx'],
+    setupFiles: ['./vitest.setup.ts'],
+  },
 });
