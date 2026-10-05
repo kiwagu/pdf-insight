@@ -145,3 +145,22 @@ describe('source pages against the document range', () => {
     expect(analysisResultSchema.safeParse({ ...valid, amounts, dates }).success).toBe(true);
   });
 });
+
+describe('the summary rule at the result boundary', () => {
+  const sentences = (n: number) =>
+    Array.from({ length: n }, (_, i) => `Zdanie ${i + 1}.`).join(' ');
+  it('rejects a result whose summary has fewer than three or more than five sentences', () => {
+    for (const n of [1, 2, 6]) {
+      expect(analysisResultSchema.safeParse({ ...valid, summary: sentences(n) }).success).toBe(
+        false,
+      );
+    }
+  });
+  it('accepts three and five sentences', () => {
+    for (const n of [3, 5]) {
+      expect(analysisResultSchema.safeParse({ ...valid, summary: sentences(n) }).success).toBe(
+        true,
+      );
+    }
+  });
+});

@@ -80,6 +80,15 @@ describe('createHttpAnalyzer', () => {
       createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(doc),
     ).rejects.toMatchObject({ code: 'rate_limited', retryable: true });
   });
+  it('rejects a well-formed result whose summary is a single sentence as invalid_response', async () => {
+    const short = { ...okBody, result: { ...okBody.result, summary: 'One sentence only.' } };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(short), { status: 200 }));
+    await expect(
+      createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(doc),
+    ).rejects.toMatchObject({ code: 'invalid_response' });
+  });
   it('maps a network failure to network and a non-JSON body to invalid_response', async () => {
     await expect(
       createHttpAnalyzer('https://api.example/analyze', {
