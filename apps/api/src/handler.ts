@@ -53,7 +53,9 @@ async function readCappedText(
     if (done) break;
     size += value.byteLength;
     if (size > maxBytes) {
-      await reader.cancel();
+      // The answer does not wait for the cancellation to settle: a stream that never settles its
+      // cancel would otherwise hold the request past the deadline.
+      reader.cancel().catch(() => undefined);
       throw new BodyTooLargeError();
     }
     parts.push(value);

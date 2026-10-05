@@ -287,6 +287,26 @@ describe('createHandler budget before the analysis', () => {
     });
     expect(cancelled).toBe(true);
   });
+  it('answers 413 for an oversized body without waiting for the stream to cancel', async () => {
+    // A stream whose cancellation never settles: the answer must not depend on it.
+    const big = new TextEncoder().encode('x'.repeat(2000));
+    const neverCancels = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(big);
+      },
+      cancel() {
+        return new Promise<void>(() => undefined);
+      },
+    });
+    const init: RequestInit & { duplex: 'half' } = { body: neverCancels, duplex: 'half' };
+    const res = await Promise.race([
+      handler()(post(init)),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('handler still pending after 2 s')), 2000),
+      ),
+    ]);
+    expect(res.status).toBe(413);
+  });
   it('answers a retryable timeout when a model call outlives the budget it was given', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     // A model that ignores its call timeout: the handler still answers at the deadline.
