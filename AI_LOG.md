@@ -56,3 +56,23 @@ API slice exists.
 - **Plan inconsistency.** The plan named the third TypeScript config `worker.json` in one place and
   `function.json` in two others; Claude picked the name the rest of the plan depended on and
   flagged the discrepancy instead of guessing silently.
+
+### Slice 2: contracts package (Zod schemas, identifiers)
+
+- **Validation that only looked like validation.** The planned schema checked ISO formats with
+  regular expressions, so `2026-02-30`, currency `ZZZ` and language `zz` all passed and would never
+  have triggered the single retry the result contract requires. The review proved it with runtime
+  probes. Fixed with a calendar-aware ISO date check and membership checks against ISO 639-1 and
+  ISO 4217 code lists, plus negative tests for each case.
+- **A hand-written list is a stale list.** The first ISO 4217 list was written from memory and
+  missed `XAD` (added to the standard in 2025); the review knew the amendment. Fixed by reconciling
+  the list against the official maintenance agency's `list-one.xml` (fetched 2026-10-05) and
+  recording the source in the file.
+- **Strictness has a cost the plan had not priced.** Claude pointed out that a strict membership
+  check would reject documents with amounts in withdrawn currencies (for example HRK or BGN).
+  Decision: accept withdrawn codes through a second list, because the boundary exists to reject
+  garbage, not history.
+- **Small API drift.** `z.number().finite()` is deprecated in zod 4 and does nothing, and a type
+  cast in the JSON Schema export was unnecessary; lint flagged both. The shared ESLint configuration
+  also needed an exception so config files outside a package's `tsconfig` are linted without type
+  information.
