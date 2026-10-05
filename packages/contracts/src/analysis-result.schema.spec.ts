@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { analysisResultSchema, llmAnalysisSchema } from './analysis-result.schema.ts';
+import {
+  analysisResultSchema,
+  llmAnalysisSchema,
+  llmFinalAnalysisSchema,
+} from './analysis-result.schema.ts';
 
 const valid = {
   document: {
@@ -109,9 +113,21 @@ describe('analysisResultSchema', () => {
 });
 
 describe('llmAnalysisSchema', () => {
+  const { meta: _m, ...rest } = valid;
+  const { fileName: _f, pages: _p, ...doc } = rest.document;
+  const answer = { ...rest, document: doc };
+
   it('does not require fileName, pages or meta', () => {
-    const { meta: _m, ...rest } = valid;
-    const { fileName: _f, pages: _p, ...doc } = rest.document;
-    expect(llmAnalysisSchema.safeParse({ ...rest, document: doc }).success).toBe(true);
+    expect(llmAnalysisSchema.safeParse(answer).success).toBe(true);
+  });
+  it('rejects a blank summary, also in the result', () => {
+    expect(llmAnalysisSchema.safeParse({ ...answer, summary: '  \n ' }).success).toBe(false);
+    expect(analysisResultSchema.safeParse({ ...valid, summary: '   ' }).success).toBe(false);
+  });
+  it('leaves the sentence count of a partial answer to the whole-document schema', () => {
+    const oneSentence = { ...answer, summary: 'This part lists the fees.' };
+    expect(llmAnalysisSchema.safeParse(oneSentence).success).toBe(true);
+    expect(llmFinalAnalysisSchema.safeParse(oneSentence).success).toBe(false);
+    expect(llmFinalAnalysisSchema.safeParse(answer).success).toBe(true);
   });
 });

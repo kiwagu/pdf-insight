@@ -100,6 +100,54 @@ describe('analyzeText', () => {
     expect(analyzeChunk).toHaveBeenCalledTimes(2);
     expect(result.summary).toContain('Umowa');
   });
+  it('retries once when the summary is blank or outside three to five sentences', async () => {
+    const six = 'Jeden. Dwa. Trzy. Cztery. Pięć. Sześć.';
+    for (const summary of ['  ', 'Jedno zdanie.', 'Raz. Dwa.', six]) {
+      const analyzeChunk = vi
+        .fn<ModelPort['analyzeChunk']>()
+        .mockResolvedValueOnce(llm({ summary }))
+        .mockResolvedValue(llm());
+      const result = await analyzeText(
+        { fileName: 'x.pdf', pages: 1, pageTexts: ['Wynagrodzenie 184 500 zl'], scannedPages: [] },
+        deps({ analyzeChunk, reduce: vi.fn() }),
+      );
+      expect(analyzeChunk).toHaveBeenCalledTimes(2);
+      expect(result.summary).toBe(llm().summary);
+    }
+  });
+  it('fails with invalid output when the retry still has a one-sentence summary', async () => {
+    const analyzeChunk = vi
+      .fn<ModelPort['analyzeChunk']>()
+      .mockResolvedValue(llm({ summary: 'Umowa dotyczy wsparcia.' }));
+    await expect(
+      analyzeText(
+        { fileName: 'x.pdf', pages: 1, pageTexts: ['Wynagrodzenie 184 500 zl'], scannedPages: [] },
+        deps({ analyzeChunk, reduce: vi.fn() }),
+      ),
+    ).rejects.toBeInstanceOf(ModelOutputInvalidError);
+    expect(analyzeChunk).toHaveBeenCalledTimes(2);
+  });
+  it('holds the reduce summary to the sentence count but not the summaries of the parts', async () => {
+    const analyzeChunk = vi
+      .fn<ModelPort['analyzeChunk']>()
+      .mockResolvedValue(llm({ summary: 'Ta część zawiera cennik.' }));
+    const reduce = vi
+      .fn<ModelPort['reduce']>()
+      .mockResolvedValueOnce(llm({ summary: 'Za krótko.' }))
+      .mockResolvedValue(llm());
+    const result = await analyzeText(
+      {
+        fileName: 'long.pdf',
+        pages: 2,
+        pageTexts: ['a'.repeat(80), 'b'.repeat(80)],
+        scannedPages: [],
+      },
+      deps({ analyzeChunk, reduce }),
+    );
+    expect(analyzeChunk).toHaveBeenCalledTimes(2);
+    expect(reduce).toHaveBeenCalledTimes(2);
+    expect(result.summary).toBe(llm().summary);
+  });
   it('drops ungrounded amounts and records a warning', async () => {
     const model: ModelPort = {
       analyzeChunk: vi

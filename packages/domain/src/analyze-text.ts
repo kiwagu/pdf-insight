@@ -1,5 +1,9 @@
 import type { AnalyzeRequest, AnalysisResult, LlmAnalysis } from '@pdf-insight/contracts';
-import { analysisResultSchema, llmAnalysisSchema } from '@pdf-insight/contracts';
+import {
+  analysisResultSchema,
+  llmAnalysisSchema,
+  llmFinalAnalysisSchema,
+} from '@pdf-insight/contracts';
 import { chunkPages } from './chunk-pages.ts';
 import { ModelOutputInvalidError } from './errors.ts';
 import { groundAmounts } from './ground-amounts.ts';
@@ -65,8 +69,15 @@ async function mapLimited<T, R>(
   return results;
 }
 
-function validated(output: LlmAnalysis): LlmAnalysis {
-  const parsed = llmAnalysisSchema.safeParse(output);
+/**
+ * Checks a model answer inside the retry, so a failure triggers the one retry. The answer for the
+ * whole document (the single chunk, or the reduce step) carries the summary the user reads and is
+ * held to 3 to 5 sentences; a part's summary only feeds the reduce step and is not counted.
+ */
+function validated(output: LlmAnalysis, whole: boolean): LlmAnalysis {
+  const parsed = whole
+    ? llmFinalAnalysisSchema.safeParse(output)
+    : llmAnalysisSchema.safeParse(output);
   if (!parsed.success) throw new ModelOutputInvalidError(parsed.error.message);
   return parsed.data;
 }
@@ -91,6 +102,7 @@ export async function analyzeText(
           images: imagesFor(chunk.fromPage, chunk.toPage),
           isWhole: chunks.length === 1,
         }),
+        chunks.length === 1,
       ),
     ),
   );
@@ -106,6 +118,7 @@ export async function analyzeText(
                 pages: request.pages,
                 partials,
               }),
+              true,
             ),
           ),
           ...partials,
