@@ -14,6 +14,9 @@ each of them:
 - `TextExtractor`: `createPdfJsExtractor()` reads every page with pdf.js, rebuilds the reading
   order of the text items and renders pages without a usable text layer to JPEG (at most
   `MAX_SCANNED_PAGES`). Any failure to open or read the file surfaces as `extraction_failed`.
+  pdf.js is loaded on the first upload (`lib/pdf/pdfjs-impl.ts` is a separate chunk), so the page
+  paints without it; if that chunk cannot be fetched, the upload fails with a retryable
+  `network` error.
 - `DocumentAnalyzer`: `createHttpAnalyzer(baseUrl)` posts the extracted document to the API,
   parses the response envelope with the contract schema and maps transport failures to
   `network`, unparseable or off-contract bodies to `invalid_response` and API error envelopes
