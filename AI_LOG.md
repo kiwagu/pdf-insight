@@ -236,3 +236,29 @@ structured output and the amount grounding work together.
   every relative link and path in the README and the log, a byte-for-byte check that the quoted
   system prompt equals the one in the code, and a parse of the README's JSON example with the real
   schema.
+
+### Slice 10: final review of the whole repository
+
+- **Validation that stopped at the character count.** Every slice review had passed, yet the final
+  review showed with an in-memory probe that a one-sentence or blank summary went through both the
+  server and the browser validation without triggering the single retry the result contract
+  requires. The summary is now checked for three to five sentences with an abbreviation-aware
+  counter, inside the path that the retry covers.
+- **A fix that was itself incomplete.** The first version of the time budget relied on the SDK's
+  request timeout, which stops counting once the response headers arrive, left the request-body
+  read and the rate-limit call outside the deadline, and checked the retry budget before the
+  one-second pause instead of after it. The review reproduced each gap with a focused probe; the
+  second attempt closed them.
+- **Deadlines that did not add up.** The browser gave up after 90 seconds while the function could
+  legitimately spend two 60-second model attempts plus the chunk and reduce calls; the review
+  reproduced a client timeout followed by a server success that nobody saw. One budget now runs
+  through the whole chain: the function stops retrying when the remaining time is too short, and
+  the browser waits longer than the function can take.
+- **Limits checked on one side only.** The browser enforced the total body size but not the API's
+  per-page and per-image caps, so a document inside the advertised limits could fail with a generic
+  error. The browser now validates the request with the shared schema before sending, shrinks page
+  images until they fit, and names the page that is too large.
+- **A limitation presented as a success.** A fully scanned document longer than the five pages the
+  model can read was analysed in part and saved as a complete result. Such a document is now
+  refused with an explicit message; documents with some text are still analysed, with the skipped
+  pages named in the warnings.
