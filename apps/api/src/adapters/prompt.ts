@@ -19,6 +19,14 @@ Rules:
 const attr = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/**
+ * Untrusted payloads go inside the `<document>` and `<partial>` envelopes. Any opening or closing
+ * tag of those names in the payload gets its `<` escaped, so the content can never close the
+ * envelope it sits in or open a forged one.
+ */
+export const escapeEnvelopeTags = (text: string): string =>
+  text.replace(/<(?=\/?(?:document|partial))/gi, '&lt;');
+
 export function buildChunkMessages(input: ChunkInput): {
   system: string;
   content: MessageContentBlock[];
@@ -34,7 +42,7 @@ export function buildChunkMessages(input: ChunkInput): {
   const scope = input.isWhole
     ? 'This is the whole document.'
     : `This is a part of a longer document (pages ${input.chunk.fromPage}-${input.chunk.toPage} of ${input.pages}); extract what this part contains.`;
-  const text = `${scope}\n${imageNote}<document file="${attr(input.fileName)}" pages="${input.chunk.fromPage}-${input.chunk.toPage}" of="${input.pages}">\n${input.chunk.text}\n</document>`;
+  const text = `${scope}\n${imageNote}<document file="${attr(input.fileName)}" pages="${input.chunk.fromPage}-${input.chunk.toPage}" of="${input.pages}">\n${escapeEnvelopeTags(input.chunk.text)}\n</document>`;
   return { system: SYSTEM_PROMPT, content: [...images, { type: 'text', text }] };
 }
 
@@ -43,7 +51,9 @@ export function buildReduceMessages(input: ReduceInput): {
   content: MessageContentBlock[];
 } {
   const partials = input.partials
-    .map((p, i) => `<partial index="${i + 1}">\n${JSON.stringify(p)}\n</partial>`)
+    .map(
+      (p, i) => `<partial index="${i + 1}">\n${escapeEnvelopeTags(JSON.stringify(p))}\n</partial>`,
+    )
     .join('\n');
   const text = `The document "${attr(input.fileName)}" (${input.pages} pages) was analyzed in ${input.partials.length} parts. Below are the partial results as JSON. Produce one consolidated answer for the whole document: a single summary of 3 to 5 sentences, the overall document fields, and merged lists without duplicates. Keep every amount and date that appears in any part.\n${partials}`;
   return { system: SYSTEM_PROMPT, content: [{ type: 'text', text }] };

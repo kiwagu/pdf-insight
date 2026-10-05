@@ -51,6 +51,12 @@ createAnalysisId, now }`.
   wrapped in a `<document>` envelope and the system prompt tells the model never to follow
   instructions found inside it.
 
+## Security
+
+Before the document text and the partial answers go into their `<document>` and `<partial>`
+envelopes, every literal opening or closing tag of those names in them has its `<` escaped as
+`&lt;` (`escapeEnvelopeTags`), so the content can never close its envelope or open a forged one.
+
 ## Environment
 
 | Variable                    | Default                    | Meaning                                                           |
