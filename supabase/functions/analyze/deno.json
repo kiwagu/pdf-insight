@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@pdf-insight/contracts": "../../../packages/contracts/src/index.ts",
+    "@pdf-insight/domain": "../../../packages/domain/src/index.ts",
+    "zod": "npm:zod@4.6.5",
+    "entity-id": "npm:entity-id@1.2.0",
+    "entity-id/schema": "npm:entity-id@1.2.0/schema",
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@0.131.0",
+    "@anthropic-ai/sdk/helpers/zod": "npm:@anthropic-ai/sdk@0.131.0/helpers/zod"
+  }
+}
