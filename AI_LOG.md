@@ -262,3 +262,11 @@ structured output and the amount grounding work together.
   model can read was analysed in part and saved as a complete result. Such a document is now
   refused with an explicit message; documents with some text are still analysed, with the skipped
   pages named in the warnings.
+- **A second pass found what the first fixes had left open.** The whole-repository review was run
+  again after the fixes landed and reproduced four more gaps: a function signature documented in
+  the wrong argument order; the three-to-five-sentence rule enforced on the model's answer but not
+  on the result the browser validates and stores; a sentence counter that rejected valid summaries
+  in scripts without letter case, such as Japanese or Arabic; and page numbers cited beyond the
+  document's last page accepted without a word. All four were fixed with tests, and the rule and
+  the page check now sit in the result schema itself, so an HTTP response or a stored history entry
+  is held to the same standard as the model's answer.
