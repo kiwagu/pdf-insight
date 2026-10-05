@@ -76,3 +76,15 @@ API slice exists.
   cast in the JSON Schema export was unnecessary; lint flagged both. The shared ESLint configuration
   also needed an exception so config files outside a package's `tsconfig` are linted without type
   information.
+
+### Slice 4: i18n package (catalogs, translator, parity gate)
+
+- **Dictionary lookups that trusted the prototype.** The planned translator used `catalog[key]` and
+  `key in catalog`, so a missing key named `constructor` or `toString` threw instead of falling back
+  to the key, and the parity check could report two catalogs as equal when they were not. The
+  review proved it with runtime probes. Fixed with own-property checks and regression tests.
+- **A validator that warned on success.** The plan had the parity validator print "catalogs in
+  sync" through the warning channel, which turned every lint run into noise. Fixed: success is
+  silent, mismatches fail loudly.
+- **Drafting shortcut caught.** The plan's Polish catalog was drafted without diacritics; Claude
+  wrote proper Polish and corrected a typo in one value.
