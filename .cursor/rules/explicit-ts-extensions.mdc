@@ -1,0 +1,22 @@
+---
+description: Relative imports in packages/* and apps/api end in .ts because the same source runs under Deno
+alwaysApply: true
+---
+
+# Explicit `.ts` extensions
+
+- In `packages/*` and `apps/api`, every relative import ends in `.ts`, type-only imports included:
+  `import { chunkPages } from './chunk-pages.ts';`
+  `import type { Chunk } from './document.ts';`
+- Why: the Supabase Edge Function runs this same source under Deno. Its entry,
+  `supabase/functions/analyze/index.ts`, imports `apps/api`, which imports the packages through
+  the import map in `supabase/functions/analyze/deno.json`. Deno does not resolve extensionless
+  relative paths, so a missing extension breaks the deployed function even when Vitest, `tsc`
+  and the browser build are green.
+- It costs nothing elsewhere: `allowImportingTsExtensions` is on in the shared base tsconfig, and
+  Bun, Vite and Vitest accept the extension.
+- Workspaces import each other by package name (`@pdf-insight/contracts`), never by a relative
+  path into another workspace's `src`; the Deno entry and its import map are the one exception.
+- A new runtime dependency of `contracts`, `domain` or `apps/api` must also be added to the
+  import map as a pinned `npm:` specifier, or the function cannot load it.
+- `apps/web` runs only under Vite and may keep extensionless relative imports.

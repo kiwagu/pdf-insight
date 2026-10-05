@@ -1,0 +1,26 @@
+---
+description: Ports and adapters - pure packages hold the rules, apps hold the adapters, contracts are the shared vocabulary
+alwaysApply: true
+---
+
+# Hexagonal boundaries
+
+- `packages/contracts` holds the Zod schemas and the types derived from them. It is the only
+  vocabulary the workspaces share; no workspace redeclares a payload type of its own.
+- `packages/domain` holds the rules of an analysis: chunking, merging, amount grounding, the
+  one-retry helper and the two use cases. It is pure: no network, no storage, no file system, no
+  framework, no LLM SDK. Its only runtime dependencies are `@pdf-insight/contracts` and `zod`.
+- `packages/i18n` holds the catalogs and the translator, with no host globals.
+- `apps/api` and `apps/web` are adapters. They implement the ports (the domain's extractor,
+  analyzer, history and model; the api's own rate limiter) and wire them into the use cases.
+  `supabase/functions/analyze` is only the Deno entry that builds the handler from its env.
+- A port is an interface whose members are function-typed properties
+  (`save: (entry: HistoryEntry) => void`), not method signatures: they are checked with strict
+  parameter variance and a mocked member can be passed to `expect()` without `unbound-method`.
+- Every side effect reaches a use case as an argument: the ports, the id factory (`createId`),
+  the clock (`now`). The domain never imports `entity-id`, `pdfjs-dist`, `@anthropic-ai/sdk`,
+  browser storage or any network client.
+- Dependencies point inward: apps import packages, packages never import apps, and
+  `contracts` imports no other workspace.
+- New logic goes where it belongs: a pure rule into `domain`, a payload shape into `contracts`,
+  IO into the app that performs it.

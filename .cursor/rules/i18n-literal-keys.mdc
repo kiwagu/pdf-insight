@@ -1,0 +1,24 @@
+---
+description: UI text comes only from the pl and en catalogs through t('literal.key'), with key parity enforced by lint
+alwaysApply: true
+---
+
+# i18n with literal keys
+
+- Every user-facing string in `apps/web` comes from `@pdf-insight/i18n` through
+  `t('literal.key')`, including `aria-label`, `title` and `alt` text. No hard-coded UI strings.
+- Keys are string literals at the call site: `t('upload.dropHint')`, never
+  `t('error.' + code)` or a template string. `MessageKey` is the union of the catalog keys, so a
+  typo is a type error and every use of a key is found by a plain search.
+- When the key depends on data, map the value to a literal key in a typed table instead of
+  building the key (`errorKeyFor(code)` in `apps/web/src/app/state.ts`, the document type
+  labels in `ResultView.tsx`).
+- The catalogs are `packages/i18n/src/catalogs/pl.json` (the default locale) and `en.json`, with
+  flat dotted keys. Add every key to both files in the same commit: `bun run lint` runs the
+  parity check and fails when one catalog has a key the other lacks.
+- Placeholders are `{name}` and are filled from `t(key, params)`. Numbers and dates are
+  formatted with `Intl` for the active locale, not by hand.
+- A missing string falls back to the key itself, so a gap shows on screen. That is a safety
+  net, not a substitute for the parity check.
+- Code, comments and docs are in English; Polish user-facing text lives only in the `pl`
+  catalog.
