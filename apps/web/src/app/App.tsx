@@ -65,6 +65,7 @@ export function App({ container }: { container?: Container }) {
         {state.status === 'error' && (
           <ErrorPanel
             code={state.code}
+            params={state.params}
             retryable={state.retryable}
             onRetry={retry}
             onReset={reset}

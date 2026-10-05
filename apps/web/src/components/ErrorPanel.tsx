@@ -1,4 +1,4 @@
-import type { AnalysisErrorCode } from '@pdf-insight/domain';
+import type { AnalysisErrorCode, AnalysisErrorParams } from '@pdf-insight/domain';
 import { CircleAlert } from 'lucide-react';
 import { errorKeyFor } from '../app/state';
 import { useT } from '../lib/i18n';
@@ -7,11 +7,13 @@ import { Button } from './ui/button';
 
 export function ErrorPanel({
   code,
+  params,
   retryable,
   onRetry,
   onReset,
 }: {
   code: AnalysisErrorCode;
+  params: AnalysisErrorParams;
   retryable: boolean;
   onRetry: () => void;
   onReset: () => void;
@@ -25,7 +27,7 @@ export function ErrorPanel({
       </AlertTitle>
       {/* Plain foreground text: the destructive tint is kept for the icon and the title. */}
       <p className="text-base text-foreground group-has-[>svg]/alert:col-start-2">
-        {t(errorKeyFor(code))}
+        {t(errorKeyFor(code), params)}
       </p>
       <div className="mt-3 flex flex-wrap gap-2 group-has-[>svg]/alert:col-start-2">
         {retryable && (

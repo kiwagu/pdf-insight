@@ -4,15 +4,20 @@ export type AnalysisErrorCode =
   | ApiErrorCode
   | 'invalid_file'
   | 'too_large'
+  | 'page_too_large'
   | 'extraction_failed'
   | 'network'
   | 'invalid_response';
+
+/** Values a localized error message names, such as a page number or a limit. */
+export type AnalysisErrorParams = Record<string, string | number>;
 
 export class AnalysisError extends Error {
   constructor(
     public readonly code: AnalysisErrorCode,
     message: string,
     public readonly retryable: boolean,
+    public readonly params: AnalysisErrorParams = {},
   ) {
     super(message);
     this.name = 'AnalysisError';

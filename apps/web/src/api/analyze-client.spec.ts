@@ -1,4 +1,8 @@
-import { CLIENT_TIMEOUT_MS } from '@pdf-insight/contracts';
+import {
+  CLIENT_TIMEOUT_MS,
+  MAX_IMAGE_BASE64_LENGTH,
+  MAX_PAGE_TEXT_LENGTH,
+} from '@pdf-insight/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpAnalyzer } from './analyze-client';
 
@@ -134,5 +138,40 @@ describe('createHttpAnalyzer default deadline', () => {
       message: 'The analysis service stopped responding.',
       retryable: true,
     });
+  });
+});
+
+describe('createHttpAnalyzer request check', () => {
+  it('refuses a page whose text is over the cap before sending, naming the page and the cap', async () => {
+    const fetchImpl = vi.fn();
+    const long = { ...doc, pages: 2, pageTexts: ['hello', 'x'.repeat(MAX_PAGE_TEXT_LENGTH + 1)] };
+    await expect(
+      createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(long),
+    ).rejects.toMatchObject({
+      code: 'page_too_large',
+      retryable: false,
+      params: { page: 2, max: MAX_PAGE_TEXT_LENGTH },
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it('sends a page whose text is exactly at the cap', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(okBody), { status: 200 }));
+    const full = { ...doc, pageTexts: ['x'.repeat(MAX_PAGE_TEXT_LENGTH)] };
+    await createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(full);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('refuses any other request the API schema would reject, before sending', async () => {
+    const fetchImpl = vi.fn();
+    const hugeImage = {
+      ...doc,
+      pageTexts: [''],
+      scannedPages: [{ page: 1, imageJpegBase64: 'x'.repeat(MAX_IMAGE_BASE64_LENGTH + 1) }],
+    };
+    await expect(
+      createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(hugeImage),
+    ).rejects.toMatchObject({ code: 'invalid_request', retryable: false });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

@@ -16,13 +16,30 @@ describe('reducer', () => {
       { status: 'analyzing', pages: 1 },
       { type: 'fail', error: new AnalysisError('rate_limited', 'slow', true) },
     );
-    expect(s).toEqual({ status: 'error', code: 'rate_limited', message: 'slow', retryable: true });
+    expect(s).toEqual({
+      status: 'error',
+      code: 'rate_limited',
+      message: 'slow',
+      retryable: true,
+      params: {},
+    });
     expect(reducer(s, { type: 'reset' })).toEqual(initialState);
+  });
+  it('keeps the parameters of an error for its message', () => {
+    const s = reducer(
+      { status: 'analyzing', pages: 2 },
+      {
+        type: 'fail',
+        error: new AnalysisError('page_too_large', 'too long', false, { page: 2, max: 50_000 }),
+      },
+    );
+    expect(s).toMatchObject({ status: 'error', params: { page: 2, max: 50_000 } });
   });
   it('maps every error code to a catalog key', () => {
     expect(errorKeyFor('rate_limited')).toBe('error.rate_limited');
     expect(errorKeyFor('too_large')).toBe('error.too_large');
     expect(errorKeyFor('invalid_file')).toBe('error.invalid_file');
     expect(errorKeyFor('analysis_timeout')).toBe('error.analysis_timeout');
+    expect(errorKeyFor('page_too_large')).toBe('error.page_too_large');
   });
 });
