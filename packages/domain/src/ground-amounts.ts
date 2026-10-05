@@ -2,16 +2,16 @@ import type { LlmAnalysis } from '@pdf-insight/contracts';
 
 /**
  * One written number. An optional sign counts only when no letter or digit is glued to it, so
- * the hyphen in `10-20` is not a minus. The integer part is grouped by a run of whitespace
- * (no-break spaces and line breaks included: a page's visual lines are joined with `\n`, and a
- * paragraph can wrap inside an amount), by dots or by commas, or not grouped at all. Every group
- * after the first has exactly three digits, and a group that a percent or per mille sign follows,
- * after any run of whitespace, is not taken, so `3 400 100%` and `3 400 100 %` read as 3 400 and
- * 100. A decimal part of one or two digits ends the number, so neighbouring table columns
- * (`55 350,00 12 730,50`) stay separate numbers.
+ * the hyphen in `10-20` is not a minus. The integer part is grouped by any Unicode whitespace run
+ * (`\s`: spaces, no-break and thin spaces, tabs, form feeds and line breaks; a page's visual
+ * lines are joined with `\n`, and a paragraph can wrap inside an amount), by dots or by commas,
+ * or not grouped at all. Every group after the first has exactly three digits, and a group that a
+ * percent or per mille sign follows, after any Unicode whitespace run, is not taken, so
+ * `3 400 100%` and `3 400 100 %` read as 3 400 and 100. A decimal part of one or two digits ends
+ * the number, so neighbouring table columns (`55 350,00 12 730,50`) stay separate numbers.
  */
 const NUMBER =
-  /(?:(?<![\p{L}\p{N}])[+-])?(?:\d{1,3}(?:[ \u00A0\u202F\t\r\n]+\d{3}(?![ \u00A0\u202F\t\r\n]*[%\u2030]))+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gu;
+  /(?:(?<![\p{L}\p{N}])[+-])?(?:\d{1,3}(?:\s+\d{3}(?!\s*[%\u2030]))+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gu;
 
 /**
  * The values one NUMBER match can stand for: separators removed, a decimal comma read as a point.

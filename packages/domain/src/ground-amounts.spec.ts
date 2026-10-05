@@ -87,6 +87,8 @@ describe('groundAmounts', () => {
       'Kwota 3 400 100  %',
       'Kwota 3 400 100\t%',
       'Kwota 3 400 100\r\n\u2030',
+      'Kwota 3 400 100\u2009%',
+      'Kwota 3 400 100\f%',
     ]) {
       const { analysis } = groundAmounts(
         { ...base, amounts: [3400, 3400100].map((value) => amount(value)) },
@@ -97,7 +99,13 @@ describe('groundAmounts', () => {
     }
   });
   it('grounds a decimal amount split by a run of whitespace, never its groups', () => {
-    for (const written of ['184  500,00', '184\r\n500,00', '184\t500,00']) {
+    for (const written of [
+      '184  500,00',
+      '184\r\n500,00',
+      '184\t500,00',
+      '184\u2009500,00',
+      '184\f500,00',
+    ]) {
       const { analysis } = groundAmounts(
         { ...base, amounts: [184500, 184, 500].map((value) => amount(value)) },
         `Wynagrodzenie ${written} PLN`,
@@ -163,12 +171,16 @@ describe('numericTokens', () => {
     expect(numericTokens('3 400 100  %')).toEqual([3400, 3, 100]);
     expect(numericTokens('3 400 100\t%')).toEqual([3400, 3, 100]);
     expect(numericTokens('3 400 100\r\n\u2030')).toEqual([3400, 3, 100]);
+    expect(numericTokens('3 400 100\u2009%')).toEqual([3400, 3, 100]);
+    expect(numericTokens('3 400 100\f%')).toEqual([3400, 3, 100]);
   });
   it('reads an integer run whole and as each shorter prefix, since it may be two integers', () => {
     expect(numericTokens('3 400 100')).toEqual([3400100, 3400, 3]);
     expect(numericTokens('licencje 2 150 EUR')).toEqual([2150, 2]);
   });
   it('lets a run of any whitespace separate digit groups', () => {
+    expect(numericTokens('184\u2009500,00')).toEqual([184500]);
+    expect(numericTokens('184\f500,00')).toEqual([184500]);
     expect(numericTokens('184  500,00 | 184\r\n500,00 | 184\t500,00')).toEqual([
       184500, 184500, 184500,
     ]);
