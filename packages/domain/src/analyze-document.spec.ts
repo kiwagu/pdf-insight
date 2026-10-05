@@ -70,6 +70,56 @@ describe('analyzeDocument', () => {
     await expect(analyzeDocument(file, d)).rejects.toMatchObject({ code: 'invalid_file' });
     expect(d.analyzer.analyze).not.toHaveBeenCalled();
   });
+  describe('a document with more pages without a text layer than can be read as images', () => {
+    const scans = (pages: number[]) => pages.map((page) => ({ page, imageJpegBase64: 'AAAA' }));
+    const extractorOf = (pageTexts: string[], scanned: number[]): TextExtractor => ({
+      extract: vi.fn().mockResolvedValue({
+        fileName: 'scan.pdf',
+        pages: pageTexts.length,
+        pageTexts,
+        scannedPages: scans(scanned),
+      }),
+    });
+    const text = 'hello world, this document has a real text layer';
+
+    it('is refused before the analyzer when no page has text, naming the page count and the cap', async () => {
+      const {
+        deps: d,
+        history,
+        onStage,
+      } = deps({
+        extractor: extractorOf(
+          Array.from({ length: 7 }, () => ''),
+          [1, 2, 3, 4, 5],
+        ),
+      });
+      await expect(analyzeDocument(file, d)).rejects.toMatchObject({
+        code: 'ocr_limit',
+        retryable: false,
+        params: { pages: 7, max: 5 },
+      });
+      expect(d.analyzer.analyze).not.toHaveBeenCalled();
+      expect(history.save).not.toHaveBeenCalled();
+      expect(onStage.mock.calls.map((c) => c[0])).toEqual(['extracting']);
+    });
+    it('is analysed when it is fully scanned but within the cap', async () => {
+      const { deps: d } = deps({
+        extractor: extractorOf(
+          Array.from({ length: 5 }, () => ''),
+          [1, 2, 3, 4, 5],
+        ),
+      });
+      await expect(analyzeDocument(file, d)).resolves.toEqual(result);
+      expect(d.analyzer.analyze).toHaveBeenCalledTimes(1);
+    });
+    it('is analysed in part when some pages have text', async () => {
+      const { deps: d } = deps({
+        extractor: extractorOf([text, '', '', '', '', '', '', ''], [2, 3, 4, 5, 6]),
+      });
+      await expect(analyzeDocument(file, d)).resolves.toEqual(result);
+      expect(d.analyzer.analyze).toHaveBeenCalledTimes(1);
+    });
+  });
   it('turns an analyzer response that fails the schema into invalid_response', async () => {
     const { deps: d } = deps({
       analyzer: {

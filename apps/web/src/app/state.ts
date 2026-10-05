@@ -68,6 +68,7 @@ const ERROR_KEYS: Record<AnalysisErrorCode, MessageKey> = {
   invalid_file: 'error.invalid_file',
   too_large: 'error.too_large',
   page_too_large: 'error.page_too_large',
+  ocr_limit: 'error.ocr_limit',
   extraction_failed: 'error.extraction_failed',
   network: 'error.network',
   invalid_response: 'error.invalid_response',

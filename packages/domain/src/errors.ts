@@ -5,6 +5,7 @@ export type AnalysisErrorCode =
   | 'invalid_file'
   | 'too_large'
   | 'page_too_large'
+  | 'ocr_limit'
   | 'extraction_failed'
   | 'network'
   | 'invalid_response';

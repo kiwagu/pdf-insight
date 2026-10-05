@@ -16,6 +16,7 @@
   "error.invalid_file": "This is not a valid PDF file, or it contains no readable text.",
   "error.too_large": "The file is too large. The maximum size is 10 MB.",
   "error.page_too_large": "Page {page} holds more text than can be analysed (the limit is {max} characters per page). Remove that page or split the document.",
+  "error.ocr_limit": "This document is a scan without a text layer. It has {pages} pages, and at most {max} can be read as images. Split the document into parts of up to {max} pages.",
   "error.extraction_failed": "The PDF file could not be read. It may be damaged or encrypted.",
   "error.network": "Cannot reach the analysis server. Check your internet connection and try again.",
   "error.rate_limited": "Too many requests. Wait a moment and try again.",

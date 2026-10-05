@@ -16,6 +16,7 @@
   "error.invalid_file": "To nie jest prawidłowy plik PDF lub nie zawiera czytelnego tekstu.",
   "error.too_large": "Plik jest za duży. Maksymalny rozmiar to 10 MB.",
   "error.page_too_large": "Strona {page} zawiera więcej tekstu, niż można przeanalizować (limit to {max} znaków na stronę). Usuń tę stronę lub podziel dokument.",
+  "error.ocr_limit": "Ten dokument to skan bez warstwy tekstowej. Liczba stron: {pages}, a jako obrazy można odczytać najwyżej {max}. Podziel dokument na części po maksymalnie {max} stron.",
   "error.extraction_failed": "Nie udało się odczytać pliku PDF. Plik może być uszkodzony lub zaszyfrowany.",
   "error.network": "Brak połączenia z serwerem analizy. Sprawdź połączenie z internetem i spróbuj ponownie.",
   "error.rate_limited": "Zbyt wiele żądań. Odczekaj chwilę i spróbuj ponownie.",

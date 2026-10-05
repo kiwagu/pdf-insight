@@ -169,6 +169,26 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).not.toBeInTheDocument();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+  it('refuses a long fully scanned document, naming its page count and the limit', async () => {
+    const scanned: ExtractedDocument = {
+      fileName: 'scan.pdf',
+      pages: 8,
+      pageTexts: Array.from({ length: 8 }, () => ''),
+      scannedPages: [1, 2, 3, 4, 5].map((page) => ({ page, imageJpegBase64: 'AAAA' })),
+    };
+    const c = container(
+      undefined,
+      [],
+      vi.fn<TextExtractor['extract']>().mockResolvedValue(scanned),
+    );
+    renderApp(c);
+    await userEvent.upload(screen.getByTestId('file-input'), pdf);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Liczba stron: 8'));
+    expect(screen.getByRole('alert')).toHaveTextContent('najwyżej 5');
+    expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).not.toBeInTheDocument();
+    expect(c.analyzer.analyze).not.toHaveBeenCalled();
+    expect(c.history.save).not.toHaveBeenCalled();
+  });
   it('restores a result from the history and clears the history', async () => {
     const entry: HistoryEntry = {
       id: result.meta.id,
