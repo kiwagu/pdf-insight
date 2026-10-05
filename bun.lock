@@ -27,6 +27,21 @@
         "vitest": "^5.0.0",
       },
     },
+    "packages/domain": {
+      "name": "@pdf-insight/domain",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pdf-insight/contracts": "workspace:*",
+        "zod": "^4.6.0",
+      },
+      "devDependencies": {
+        "@pdf-insight/eslint-config": "workspace:*",
+        "@pdf-insight/typescript-config": "workspace:*",
+        "eslint": "^10.0.0",
+        "typescript": "^6.0.3",
+        "vitest": "^5.0.0",
+      },
+    },
     "packages/eslint-config": {
       "name": "@pdf-insight/eslint-config",
       "version": "0.0.0",
@@ -137,6 +152,8 @@
     "@oxc-project/types": ["@oxc-project/types@0.152.0", "", {}, "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw=="],
 
     "@pdf-insight/contracts": ["@pdf-insight/contracts@workspace:packages/contracts"],
+
+    "@pdf-insight/domain": ["@pdf-insight/domain@workspace:packages/domain"],
 
     "@pdf-insight/eslint-config": ["@pdf-insight/eslint-config@workspace:packages/eslint-config"],
 

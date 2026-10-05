@@ -14,8 +14,8 @@ const valid = {
     'Umowa okresla zasady wdrozenia CRM. Obejmuje 24 miesiace. Wynagrodzenie jest ryczaltowe.',
   keyPoints: ['Okres umowy 24 mies.'],
   entities: { organizations: ['Nordwave Logistics sp. z o.o.'], people: ['Anna Kowalczyk'] },
-  amounts: [{ value: 184500, currency: 'PLN', context: 'wynagrodzenie za wdrozenie' }],
-  dates: [{ date: '2026-10-12', context: 'go-live' }],
+  amounts: [{ value: 184500, currency: 'PLN', context: 'wynagrodzenie za wdrozenie', page: 4 }],
+  dates: [{ date: '2026-10-12', context: 'go-live', page: null }],
   keywords: ['CRM', 'SLA'],
   meta: {
     id: 'ana_1',
@@ -45,17 +45,18 @@ describe('analysisResultSchema', () => {
     expect(analysisResultSchema.safeParse(empty).success).toBe(true);
   });
   it('rejects a lowercase currency', () => {
-    const bad = { ...valid, amounts: [{ value: 1, currency: 'pln', context: 'x' }] };
+    const bad = { ...valid, amounts: [{ value: 1, currency: 'pln', context: 'x', page: null }] };
     expect(analysisResultSchema.safeParse(bad).success).toBe(false);
   });
   it('rejects a non-ISO date', () => {
-    const bad = { ...valid, dates: [{ date: '12.03.2026', context: 'x' }] };
+    const bad = { ...valid, dates: [{ date: '12.03.2026', context: 'x', page: null }] };
     expect(analysisResultSchema.safeParse(bad).success).toBe(false);
   });
   it('rejects a date that does not exist in the calendar', () => {
     for (const date of ['2026-02-30', '2026-99-99']) {
       expect(
-        analysisResultSchema.safeParse({ ...valid, dates: [{ date, context: 'x' }] }).success,
+        analysisResultSchema.safeParse({ ...valid, dates: [{ date, context: 'x', page: null }] })
+          .success,
       ).toBe(false);
       expect(
         analysisResultSchema.safeParse({ ...valid, document: { ...valid.document, date } }).success,
@@ -63,7 +64,7 @@ describe('analysisResultSchema', () => {
     }
   });
   it('rejects a currency code outside ISO 4217', () => {
-    const bad = { ...valid, amounts: [{ value: 1, currency: 'ZZZ', context: 'x' }] };
+    const bad = { ...valid, amounts: [{ value: 1, currency: 'ZZZ', context: 'x', page: null }] };
     expect(analysisResultSchema.safeParse(bad).success).toBe(false);
   });
   it('rejects a language code outside ISO 639-1', () => {
@@ -76,8 +77,8 @@ describe('analysisResultSchema', () => {
     const other = {
       ...valid,
       document: { ...valid.document, language: 'de', date: '2024-02-29' },
-      amounts: [{ value: 1200, currency: 'CHF', context: 'x' }],
-      dates: [{ date: '2024-02-29', context: 'x' }],
+      amounts: [{ value: 1200, currency: 'CHF', context: 'x', page: 2 }],
+      dates: [{ date: '2024-02-29', context: 'x', page: null }],
     };
     expect(analysisResultSchema.safeParse(other).success).toBe(true);
   });
@@ -92,6 +93,14 @@ describe('analysisResultSchema', () => {
         keyPoints: Array.from({ length: 8 }, (_, i) => `p${i}`),
       }).success,
     ).toBe(false);
+  });
+  it('requires the page of every amount and date, null when unknown', () => {
+    const noPageAmount = { ...valid, amounts: [{ value: 1, currency: 'PLN', context: 'x' }] };
+    const noPageDate = { ...valid, dates: [{ date: '2026-10-12', context: 'x' }] };
+    expect(analysisResultSchema.safeParse(noPageAmount).success).toBe(false);
+    expect(analysisResultSchema.safeParse(noPageDate).success).toBe(false);
+    const zeroPage = { ...valid, amounts: [{ value: 1, currency: 'PLN', context: 'x', page: 0 }] };
+    expect(analysisResultSchema.safeParse(zeroPage).success).toBe(false);
   });
   it('rejects a missing required key', () => {
     const { keywords: _k, ...noKeywords } = valid;

@@ -1,0 +1,1 @@
+{ "extends": "@pdf-insight/typescript-config/function.json", "include": ["src"] }

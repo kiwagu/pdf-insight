@@ -16,7 +16,10 @@ and Deno.
 
 - **Result**: `analysisResultSchema` (what the API returns: the model's analysis plus
   `document.fileName`, `document.pages` and a `meta` block), `analysisMetaSchema`, types
-  `AnalysisResult`, `AnalysisMeta`, `DocumentType`, constant `DOCUMENT_TYPES`.
+  `AnalysisResult`, `AnalysisMeta`, `DocumentType`, constant `DOCUMENT_TYPES`. Every entry of
+  `amounts` and `dates` carries an additive `page` field: the 1-based page it was read from, or
+  `null` when the model cannot tell. It lets an amount read from a scanned page image be kept even
+  though its value is not in the text layer.
 - **Model output**: `llmAnalysisSchema` (strict, validates the parsed model answer: a language
   from the ISO 639-1 list, an active or withdrawn ISO 4217 currency, `YYYY-MM-DD` dates that exist in the
   calendar, at most 7 key points) and
