@@ -69,3 +69,22 @@ describe('finalSummarySchema', () => {
     expect(finalSummarySchema.safeParse(long).success).toBe(false);
   });
 });
+
+describe('countSentences in scripts without letter case', () => {
+  it('counts Japanese sentences ended by the ideographic full stop without spaces', () => {
+    expect(
+      countSentences('契約は六月一日に始まります。月額料金は三千ユーロです。期間は二年です。'),
+    ).toBe(3);
+  });
+  it('counts Arabic sentences, whose letters have no case', () => {
+    expect(
+      countSentences('يبدأ العقد في يونيو. الرسوم الشهرية ثلاثة آلاف يورو. المدة سنتان.'),
+    ).toBe(3);
+  });
+  it('accepts the Arabic question mark and the Urdu full stop as sentence ends', () => {
+    expect(countSentences('هل العقد ساري؟ نعم۔ ينتهي في مايو')).toBe(3);
+  });
+  it('still keeps a lowercase continuation in one sentence', () => {
+    expect(countSentences('Umowa trwa 2 lata. w tym czasie obowiazuje SLA.')).toBe(1);
+  });
+});

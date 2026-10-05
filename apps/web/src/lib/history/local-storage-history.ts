@@ -25,8 +25,13 @@ export function createLocalStorageHistory(
     try {
       const raw = storage.getItem(key);
       if (!raw) return [];
-      const parsed = z.array(entrySchema).safeParse(JSON.parse(raw));
-      return parsed.success ? parsed.data : [];
+      const list = z.array(z.unknown()).safeParse(JSON.parse(raw));
+      if (!list.success) return [];
+      // Entry by entry: one stale or damaged entry must not take the whole history with it.
+      return list.data.flatMap((item) => {
+        const entry = entrySchema.safeParse(item);
+        return entry.success ? [entry.data] : [];
+      });
     } catch {
       return [];
     }

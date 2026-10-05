@@ -36,12 +36,16 @@ const CONTINUING_ABBREVIATIONS = new Set([
 
 /**
  * A candidate sentence end: terminal punctuation, optional closing quotes or brackets, whitespace,
- * and then the capital letter or digit that starts the next sentence (optionally after an opening
- * quote). An opening bracket does not start a sentence, so `S.A. (Wykonawca)` stays one sentence;
- * a period inside a number (`99.5%`, `12.03.2026`) is never followed by whitespace; and an ordinal
- * (`2. kwartale`) or an abbreviation in mid-sentence is followed by a lowercase word.
+ * and then the character that starts the next sentence (optionally after an opening quote): a
+ * capital letter, a digit, or a letter of a script without case (Arabic, Hebrew, CJK). The Arabic
+ * question mark and the Urdu full stop are sentence ends too, and the East Asian full stop,
+ * exclamation and question marks need no whitespace after them. An opening bracket does not start
+ * a sentence, so `S.A. (Wykonawca)` stays one sentence; a period inside a number (`99.5%`,
+ * `12.03.2026`) is never followed by whitespace; and an ordinal (`2. kwartale`) or an abbreviation
+ * in mid-sentence is followed by a lowercase word.
  */
-const SENTENCE_END = /([.!?…]+)["'”’»)\]]*\s+(?=["'„“‘«]?[\p{Lu}\p{Nd}])/gu;
+const SENTENCE_END =
+  /(?:([.!?…؟۔]+)["'”’»)\]]*\s+|([。！？]+)[」』”’)\]]*\s*)(?=["'„“‘«「『]?[\p{Lu}\p{Lo}\p{Nd}])/gu;
 const HAS_CONTENT = /[\p{L}\p{N}]/u;
 const LAST_WORD = /(\S+)$/u;
 

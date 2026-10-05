@@ -23,8 +23,8 @@ each of them:
   to their own code. Requests time out after 150 seconds (`CLIENT_TIMEOUT_MS`), longer than the
   function's own 140 s budget, so a late success is not discarded.
 - `AnalysisHistory`: `createLocalStorageHistory(storage)` keeps the newest ten results under
-  `pdf-insight.history.v1`, validates what it reads back and falls back to memory when storage
-  is unavailable or full.
+  `pdf-insight.history.v1`, validates what it reads back entry by entry (a stale or damaged entry
+  is dropped, the rest stays) and falls back to memory when storage is unavailable or full.
 
 `createContainer()` wires the three adapters together. Before an upload reaches the use case,
 `validatePdfFile` rejects files over 10 MB and anything that is not named or typed as a PDF or

@@ -18,7 +18,7 @@ const okBody = {
       title: null,
       date: null,
     },
-    summary: 'Hello.',
+    summary: 'Hello there. This is a test. It has three sentences.',
     keyPoints: [],
     entities: { organizations: [], people: [] },
     amounts: [],
@@ -60,7 +60,7 @@ describe('createHttpAnalyzer', () => {
     const result = await createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(
       doc,
     );
-    expect(result.summary).toBe('Hello.');
+    expect(result.summary).toBe('Hello there. This is a test. It has three sentences.');
     const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.example/analyze');
     expect(init.method).toBe('POST');
@@ -79,6 +79,15 @@ describe('createHttpAnalyzer', () => {
     await expect(
       createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(doc),
     ).rejects.toMatchObject({ code: 'rate_limited', retryable: true });
+  });
+  it('rejects a well-formed result whose summary is a single sentence as invalid_response', async () => {
+    const short = { ...okBody, result: { ...okBody.result, summary: 'One sentence only.' } };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(short), { status: 200 }));
+    await expect(
+      createHttpAnalyzer('https://api.example/analyze', { fetchImpl }).analyze(doc),
+    ).rejects.toMatchObject({ code: 'invalid_response' });
   });
   it('maps a network failure to network and a non-JSON body to invalid_response', async () => {
     await expect(

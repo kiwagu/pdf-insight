@@ -77,14 +77,45 @@ export const analysisMetaSchema = z.object({
   analyzedAt: z.string(),
 });
 
-/** The result shape: the document fields, the analysis and the additive `meta` block. */
-export const analysisResultSchema = llmAnalysisSchema.extend({
-  document: llmDocumentSchema.extend({
-    fileName: z.string().min(1),
-    pages: z.number().int().min(1),
-  }),
-  meta: analysisMetaSchema,
-});
+/** Every `page` an amount or a date cites must exist in the document; `null` means unknown. */
+function pagesWithinDocument(
+  result: {
+    document: { pages: number };
+    amounts: { page: number | null }[];
+    dates: { page: number | null }[];
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const check = (items: { page: number | null }[], list: 'amounts' | 'dates') => {
+    items.forEach((item, index) => {
+      if (item.page !== null && item.page > result.document.pages) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [list, index, 'page'],
+          message: `expected a page within 1..${result.document.pages}`,
+        });
+      }
+    });
+  };
+  check(result.amounts, 'amounts');
+  check(result.dates, 'dates');
+}
+
+/** The result shape: the document fields, the analysis and the additive `meta` block; the summary the user reads is held to
+ *  3 to 5 sentences here too, so neither the HTTP response nor a stored history entry can carry a
+ *  summary the model answer would have been retried for. */
+export const analysisResultSchema = llmAnalysisSchema
+  .extend({
+    document: llmDocumentSchema.extend({
+      fileName: z.string().min(1),
+      pages: z.number().int().min(1),
+    }),
+    summary: finalSummarySchema,
+    meta: analysisMetaSchema,
+  })
+  .superRefine(pagesWithinDocument);
+
+export { pagesWithinDocument };
 
 export type LlmAnalysis = z.infer<typeof llmAnalysisSchema>;
 export type AnalysisMeta = z.infer<typeof analysisMetaSchema>;

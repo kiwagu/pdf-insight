@@ -131,3 +131,36 @@ describe('llmAnalysisSchema', () => {
     expect(llmFinalAnalysisSchema.safeParse(answer).success).toBe(true);
   });
 });
+
+describe('source pages against the document range', () => {
+  it('rejects an amount or a date attributed to a page the document does not have', () => {
+    const amounts = [{ ...valid.amounts[0]!, page: 999 }];
+    expect(analysisResultSchema.safeParse({ ...valid, amounts }).success).toBe(false);
+    const dates = [{ ...valid.dates[0]!, page: valid.document.pages + 1 }];
+    expect(analysisResultSchema.safeParse({ ...valid, dates }).success).toBe(false);
+  });
+  it('accepts the last page and a null page', () => {
+    const amounts = [{ ...valid.amounts[0]!, page: valid.document.pages }];
+    const dates = [{ ...valid.dates[0]!, page: null }];
+    expect(analysisResultSchema.safeParse({ ...valid, amounts, dates }).success).toBe(true);
+  });
+});
+
+describe('the summary rule at the result boundary', () => {
+  const sentences = (n: number) =>
+    Array.from({ length: n }, (_, i) => `Zdanie ${i + 1}.`).join(' ');
+  it('rejects a result whose summary has fewer than three or more than five sentences', () => {
+    for (const n of [1, 2, 6]) {
+      expect(analysisResultSchema.safeParse({ ...valid, summary: sentences(n) }).success).toBe(
+        false,
+      );
+    }
+  });
+  it('accepts three and five sentences', () => {
+    for (const n of [3, 5]) {
+      expect(analysisResultSchema.safeParse({ ...valid, summary: sentences(n) }).success).toBe(
+        true,
+      );
+    }
+  });
+});

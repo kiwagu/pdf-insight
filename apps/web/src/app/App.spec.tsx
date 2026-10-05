@@ -32,21 +32,33 @@ describe('App', () => {
     const c = container();
     renderApp(c);
     await userEvent.upload(screen.getByTestId('file-input'), pdf);
-    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+      ).toBeInTheDocument(),
+    );
     expect(screen.getByRole('button', { name: 'Pobierz .json' })).toBeInTheDocument();
     expect(c.history.save).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole('button', { name: 'Nowa analiza' }));
     expect(screen.getByTestId('file-input')).toBeInTheDocument();
-    expect(screen.queryByText('Krotki dokument.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+    ).not.toBeInTheDocument();
   });
   it('moves focus to the view that replaces the drop zone', async () => {
     renderApp(container());
     await userEvent.upload(screen.getByTestId('file-input'), pdf);
-    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+      ).toBeInTheDocument(),
+    );
     const focused = document.activeElement;
     expect(focused).not.toBe(document.body);
     expect(focused).toContainElement(screen.getByRole('button', { name: 'Nowa analiza' }));
-    expect(focused).toContainElement(screen.getByText('Krotki dokument.'));
+    expect(focused).toContainElement(
+      screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+    );
   });
   it('announces the progress while the document is analyzed', async () => {
     let finish: (r: AnalysisResult) => void = () => undefined;
@@ -58,7 +70,11 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Analizuję dokument'));
     expect(screen.getByRole('status')).toHaveTextContent('Stron: 1');
     finish(result);
-    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+      ).toBeInTheDocument(),
+    );
     expect(screen.queryByText(/Analizuję dokument/)).not.toBeInTheDocument();
   });
   it('ignores a second file picked while the first is still being checked', async () => {
@@ -80,15 +96,21 @@ describe('App', () => {
     // Settle in the worst order: the later document first, the earlier one last.
     const done = (name: string) => ({
       ...result,
-      summary: `Wynik ${name}`,
+      summary: `Wynik ${name}. Dokument odczytany. Analiza gotowa.`,
       document: { ...result.document, fileName: name },
     });
     deferred.get('second.pdf')?.(done('second.pdf'));
     await act(() => Promise.resolve());
     deferred.get('first.pdf')?.(done('first.pdf'));
     await act(() => Promise.resolve());
-    await waitFor(() => expect(screen.getByText('Wynik first.pdf')).toBeInTheDocument());
-    expect(screen.queryByText('Wynik second.pdf')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByText('Wynik first.pdf. Dokument odczytany. Analiza gotowa.'),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText('Wynik second.pdf. Dokument odczytany. Analiza gotowa.'),
+    ).not.toBeInTheDocument();
     expect(extract).toHaveBeenCalledTimes(1);
     expect(analyze).toHaveBeenCalledTimes(1);
   });
@@ -101,7 +123,11 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /umowa\.pdf/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Wyczyść historię' })).toBeDisabled();
     release();
-    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+      ).toBeInTheDocument(),
+    );
     expect(c.analyzer.analyze).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /umowa\.pdf/ })).toBeEnabled();
   });
@@ -115,7 +141,11 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByRole('alert')).toHaveTextContent('Zbyt wiele żądań');
     await userEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
-    await waitFor(() => expect(screen.getByText('Krotki dokument.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+      ).toBeInTheDocument(),
+    );
     expect(analyze).toHaveBeenCalledTimes(2);
   });
   it('offers no retry for a final error and goes back to the start', async () => {
@@ -199,7 +229,9 @@ describe('App', () => {
     const c = container(undefined, [entry]);
     renderApp(c);
     await userEvent.click(screen.getByRole('button', { name: /a\.pdf/ }));
-    expect(screen.getByText('Krotki dokument.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Krotki dokument. Dotyczy wsparcia. Oplata jest stala.'),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Wyczyść historię' }));
     expect(c.history.clear).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/Brak zapisanych analiz/)).toBeInTheDocument();
