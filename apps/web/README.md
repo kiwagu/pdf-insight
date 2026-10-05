@@ -26,8 +26,9 @@ each of them:
   is unavailable or full.
 
 `createContainer()` wires the three adapters together. Before an upload reaches the use case,
-`validatePdfFile` rejects files over 10 MB and anything that does not start with the PDF magic
-bytes, and `exceedsPayloadCap` flags documents whose request would exceed the API body limit.
+`validatePdfFile` rejects files over 10 MB and anything that is not named or typed as a PDF or
+does not start with the PDF magic bytes; after extraction, `exceedsPayloadCap` stops a document
+whose request would exceed the API body limit before anything is sent.
 The UI state is a small reducer (`idle`, `extracting`, `analyzing`, `done`, `error`), and every
 error code maps to an `error.<code>` message of `@pdf-insight/i18n` (Polish by default, English
 on request, the choice kept in `localStorage`).

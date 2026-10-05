@@ -17,6 +17,6 @@ type-only imports to be marked as such, and leave formatting to Prettier
   and `*.config.ts` files (a package's own `eslint.config.js`, `vitest.config.ts`,
   `vite.config.ts`) sit outside its tsconfig, so they get the same rules minus the type-aware
   ones. Used by the runtime-independent packages and the serverless function.
-- `./react` (named export `react`): everything in `base`, plus for `*.tsx` files the React Hooks
-  recommended rules, the React Refresh export check, and a ban on `dangerouslySetInnerHTML`.
-  Used by the browser app.
+- `./react` (named export `react`): everything in `base`, plus the React Hooks recommended rules
+  for `*.ts` and `*.tsx` files (custom hooks live in `.ts` files too), and for `*.tsx` files the
+  React Refresh export check and a ban on `dangerouslySetInnerHTML`. Used by the browser app.

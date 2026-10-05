@@ -6,8 +6,8 @@ Shared TypeScript compiler settings that every package and app in the monorepo e
 
 This package holds no code. It keeps the compiler rules in one place so the pure packages, the
 browser app and the serverless function are all type-checked under the same strict settings.
-Each workspace's `tsconfig.json` extends one of the files below and adds only its own `include`
-list. Type checking never emits files (`noEmit`); bundling is done by the build tools.
+Each workspace's `tsconfig.json` extends one of the files below and adds its own `include` list
+(the browser app also its `@/` path alias). Type checking never emits files (`noEmit`); bundling is done by the build tools.
 
 ## Key exports
 
