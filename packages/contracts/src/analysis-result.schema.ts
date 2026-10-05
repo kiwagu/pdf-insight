@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { ISO_4217_CODES, ISO_639_1_CODES } from './iso-codes.ts';
 
 export const DOCUMENT_TYPES = ['faktura', 'umowa', 'oferta', 'raport', 'inne'] as const;
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
-const iso639 = z.string().regex(/^[a-z]{2}$/, 'expected ISO 639-1 code');
-const iso4217 = z.string().regex(/^[A-Z]{3}$/, 'expected ISO 4217 code');
+const isoDate = z.iso.date({ message: 'expected a valid YYYY-MM-DD date' });
+const iso639 = z.enum(ISO_639_1_CODES, { message: 'expected an ISO 639-1 language code' });
+const iso4217 = z.enum(ISO_4217_CODES, { message: 'expected an ISO 4217 currency code' });
 
 const llmDocumentSchema = z.object({
   language: iso639,
@@ -28,8 +29,8 @@ export const llmAnalysisSchema = z.object({
 });
 
 /** Loose twin of llmAnalysisSchema for the model's output format: structured outputs
- *  accept only a JSON Schema subset, so regex/min/max live in the strict schema that
- *  validates the parsed answer afterwards. */
+ *  accept only a JSON Schema subset, so the date, code-list and length checks live in the
+ *  strict schema that validates the parsed answer afterwards. */
 export const llmOutputFormatSchema = z.object({
   document: z.object({
     language: z.string(),

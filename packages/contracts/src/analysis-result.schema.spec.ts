@@ -52,6 +52,35 @@ describe('analysisResultSchema', () => {
     const bad = { ...valid, dates: [{ date: '12.03.2026', context: 'x' }] };
     expect(analysisResultSchema.safeParse(bad).success).toBe(false);
   });
+  it('rejects a date that does not exist in the calendar', () => {
+    for (const date of ['2026-02-30', '2026-99-99']) {
+      expect(
+        analysisResultSchema.safeParse({ ...valid, dates: [{ date, context: 'x' }] }).success,
+      ).toBe(false);
+      expect(
+        analysisResultSchema.safeParse({ ...valid, document: { ...valid.document, date } }).success,
+      ).toBe(false);
+    }
+  });
+  it('rejects a currency code outside ISO 4217', () => {
+    const bad = { ...valid, amounts: [{ value: 1, currency: 'ZZZ', context: 'x' }] };
+    expect(analysisResultSchema.safeParse(bad).success).toBe(false);
+  });
+  it('rejects a language code outside ISO 639-1', () => {
+    expect(
+      analysisResultSchema.safeParse({ ...valid, document: { ...valid.document, language: 'zz' } })
+        .success,
+    ).toBe(false);
+  });
+  it('accepts a leap day and other listed ISO codes', () => {
+    const other = {
+      ...valid,
+      document: { ...valid.document, language: 'de', date: '2024-02-29' },
+      amounts: [{ value: 1200, currency: 'CHF', context: 'x' }],
+      dates: [{ date: '2024-02-29', context: 'x' }],
+    };
+    expect(analysisResultSchema.safeParse(other).success).toBe(true);
+  });
   it('rejects an unknown document type and more than 7 key points', () => {
     expect(
       analysisResultSchema.safeParse({ ...valid, document: { ...valid.document, type: 'list' } })
