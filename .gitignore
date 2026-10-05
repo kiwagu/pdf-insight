@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+infra/dev/functions.env
+*.log
+.DS_Store
+refs/
+.claude/
