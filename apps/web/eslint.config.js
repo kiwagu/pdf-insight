@@ -8,4 +8,6 @@ export default [
     files: ['src/components/ui/**/*.tsx', 'src/lib/i18n.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
+  // pdf.js decoder assets copied from node_modules before dev and build.
+  { ignores: ['public/pdfjs/**'] },
 ];

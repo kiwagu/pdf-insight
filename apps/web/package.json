@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "bun scripts/copy-pdfjs-wasm.ts",
     "dev": "vite",
+    "prebuild": "bun scripts/copy-pdfjs-wasm.ts",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

@@ -46,6 +46,16 @@ on request, the choice kept in `localStorage`).
 `VITE_API_URL` is the full URL of the analyze endpoint and is read at build time. The app is
 served under the `/pdf-insight/` base path.
 
+## Browser support and scanned pages
+
+The extractor loads pdf.js from its legacy build (`pdfjs-dist/legacy/build`), which includes
+polyfills for the newest built-ins the default build relies on, so PDFs also open in browsers
+that are a few releases behind. Scanned pages are often JBIG2 or JPEG 2000 images, which pdf.js
+decodes with WebAssembly modules. Before `dev` and `build`, `scripts/copy-pdfjs-wasm.ts` copies
+those modules and the ICC profiles from `pdfjs-dist` into `public/pdfjs/` (generated, not
+committed). Vite serves them as `<base>pdfjs/wasm/` and `<base>pdfjs/iccs/`, and the extractor
+passes these paths to pdf.js as `wasmUrl` and `iccUrl`.
+
 ## Scripts
 
 - `VITE_API_URL=http://127.0.0.1:55351/functions/v1/analyze bun run dev`: local development
