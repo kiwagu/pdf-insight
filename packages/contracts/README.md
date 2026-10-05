@@ -42,7 +42,10 @@ and Deno.
 - **Summary rule**: `countSentences(text)` (abbreviation-aware), `summaryTextSchema` (non-blank),
   `finalSummarySchema` (`SUMMARY_MIN_SENTENCES` 3 to `SUMMARY_MAX_SENTENCES` 5 sentences, at most
   `SUMMARY_MAX_LENGTH` characters) and `llmFinalAnalysisSchema`, the strict schema applied to the
-  whole-document answer; part summaries only need to be non-blank.
+  whole-document answer; part summaries only need to be non-blank. `analysisResultSchema` applies
+  the same rule to every result, so neither an HTTP response nor a stored history entry can carry a
+  summary the model answer would have been retried for, and it rejects an amount or a date whose
+  `page` lies outside `document.pages` (`pagesWithinDocument`).
 - **Time budget**: `ANALYSIS_BUDGET_MS` (140 000, the function's budget for one analysis) and
   `CLIENT_TIMEOUT_MS` (150 000, how long the browser waits).
 - **JSON Schema**: `analysisResultJsonSchema()` returns the result schema as JSON Schema, for

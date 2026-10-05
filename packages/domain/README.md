@@ -35,7 +35,7 @@ maxScannedPages }`.
   message; codes are the API error codes plus `invalid_file`, `too_large`, `page_too_large`,
   `ocr_limit`, `extraction_failed`, `network`, `invalid_response`), type `AnalysisErrorCode`,
   `ModelOutputInvalidError` (always retryable), `ModelUpstreamError` and `AnalysisTimeoutError`.
-- **Deadline**: `Deadline`, `createDeadline(now, budgetMs)`, `NO_DEADLINE`, `MODEL_CALL_TIMEOUT_MS`
+- **Deadline**: `Deadline`, `createDeadline(budgetMs, clock)` (the clock returns epoch milliseconds), `NO_DEADLINE`, `MODEL_CALL_TIMEOUT_MS`
   (60 000) and `MIN_RETRY_BUDGET_MS` (20 000). `ModelPort` calls take `(input, { timeoutMs })`,
   `withOneRetry` takes `{ deadline }` and `analyzeText` deps take `deadline`, so every model call,
   the retry and the reduce share one budget; `withinDeadline(work, deadline, onExpire?)` bounds
