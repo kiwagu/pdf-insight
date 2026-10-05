@@ -1,0 +1,78 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { llmAnalysisSchema, llmOutputFormatSchema, type LlmAnalysis } from '@pdf-insight/contracts';
+import {
+  ModelOutputInvalidError,
+  ModelUpstreamError,
+  type ChunkInput,
+  type ModelPort,
+  type ReduceInput,
+} from '@pdf-insight/domain';
+import { buildChunkMessages, buildReduceMessages, type MessageContentBlock } from './prompt.ts';
+
+interface Options {
+  apiKey: string;
+  model: string;
+  effort: 'low' | 'medium' | 'high';
+}
+
+// The loose schema shapes the model's structured output (the API accepts only a JSON Schema
+// subset); the strict schema validates the answer afterwards.
+const OUTPUT_FORMAT = zodOutputFormat(llmOutputFormatSchema);
+
+export function createAnthropicModel(options: Options): ModelPort {
+  // Retries are owned by the domain (one retry for retryable failures), so the SDK does none.
+  const client = new Anthropic({ apiKey: options.apiKey, maxRetries: 0, timeout: 60_000 });
+
+  async function complete(system: string, content: MessageContentBlock[]): Promise<LlmAnalysis> {
+    let response: Anthropic.Message;
+    try {
+      // `create`, not `parse`: `parse` throws a plain SDK error on a truncated or refused answer
+      // before the stop reason can be read, so the answer is checked and parsed here instead.
+      response = await client.messages.create({
+        model: options.model,
+        max_tokens: 16_000,
+        system,
+        messages: [{ role: 'user', content }],
+        output_config: { format: OUTPUT_FORMAT, effort: options.effort },
+      });
+    } catch (error) {
+      if (error instanceof Anthropic.APIConnectionError) {
+        throw new ModelUpstreamError(error.message, true);
+      }
+      if (error instanceof Anthropic.APIError) {
+        const status = typeof error.status === 'number' ? error.status : 0;
+        throw new ModelUpstreamError(error.message, status === 429 || status >= 500);
+      }
+      throw error;
+    }
+    if (response.stop_reason === 'refusal') {
+      throw new ModelUpstreamError('The model declined this document.', false);
+    }
+    if (response.stop_reason === 'max_tokens') {
+      throw new ModelOutputInvalidError('the answer was cut off at max_tokens');
+    }
+    const text = response.content.find((block) => block.type === 'text');
+    if (!text) throw new ModelOutputInvalidError('the answer has no text block');
+    let output: unknown;
+    try {
+      output = JSON.parse(text.text);
+    } catch {
+      throw new ModelOutputInvalidError('the answer is not valid JSON');
+    }
+    const strict = llmAnalysisSchema.safeParse(output);
+    if (!strict.success) throw new ModelOutputInvalidError(strict.error.message);
+    return strict.data;
+  }
+
+  return {
+    analyzeChunk: (input: ChunkInput) => {
+      const { system, content } = buildChunkMessages(input);
+      return complete(system, content);
+    },
+    reduce: (input: ReduceInput) => {
+      const { system, content } = buildReduceMessages(input);
+      return complete(system, content);
+    },
+  };
+}
