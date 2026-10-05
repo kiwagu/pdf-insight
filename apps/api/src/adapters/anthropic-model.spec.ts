@@ -32,6 +32,17 @@ const message = (text: string, stopReason = 'end_turn') =>
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 
+const stalledAnswer = {
+  id: 'msg_test',
+  type: 'message',
+  role: 'assistant',
+  model: 'test-model',
+  content: [{ type: 'text', text: JSON.stringify(answer) }],
+  stop_reason: 'end_turn',
+  stop_sequence: null,
+  usage: { input_tokens: 1, output_tokens: 1 },
+};
+
 const apiError = (status: number) =>
   new Response(JSON.stringify({ type: 'error', error: { type: 'error', message: 'nope' } }), {
     status,
@@ -133,5 +144,35 @@ describe('createAnthropicModel call timeout', () => {
     await expect(failure).rejects.toMatchObject({ retryable: true });
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
     expect(headers.get('x-stainless-timeout')).toBe('5');
+  });
+});
+
+describe('createAnthropicModel body timeout', () => {
+  it('times out a call whose headers arrive at once but whose body stalls', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(() => {
+      // The body arrives long after the call's timeout and ignores any abort.
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          setTimeout(() => {
+            controller.enqueue(new TextEncoder().encode(JSON.stringify(stalledAnswer)));
+            controller.close();
+          }, 10_000);
+        },
+      });
+      return Promise.resolve(
+        new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+    const failure = modelWith(fetchMock).analyzeChunk(chunkInput, { timeoutMs: 5_000 });
+    let settledAt: number | undefined;
+    const started = Date.now();
+    failure.catch(() => (settledAt = Date.now() - started));
+    const settled = expect(failure).rejects.toBeInstanceOf(AnalysisTimeoutError);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await settled;
+    await expect(failure).rejects.toMatchObject({ retryable: true });
+    expect(settledAt).toBe(5_000);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
   });
 });

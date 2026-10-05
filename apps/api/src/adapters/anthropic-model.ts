@@ -3,9 +3,11 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { llmAnalysisSchema, llmOutputFormatSchema, type LlmAnalysis } from '@pdf-insight/contracts';
 import {
   AnalysisTimeoutError,
+  createDeadline,
   MODEL_CALL_TIMEOUT_MS,
   ModelOutputInvalidError,
   ModelUpstreamError,
+  withinDeadline,
   type ChunkInput,
   type ModelCallOptions,
   type ModelPort,
@@ -38,22 +40,33 @@ export function createAnthropicModel(options: Options): ModelPort {
     call: ModelCallOptions,
   ): Promise<LlmAnalysis> {
     let response: Anthropic.Message;
+    // The SDK's own timeout stops at the response headers; this timer covers the whole call, body
+    // included, and aborts the request when it fires.
+    const controller = new AbortController();
     try {
       // `create`, not `parse`: `parse` throws a plain SDK error on a truncated or refused answer
       // before the stop reason can be read, so the answer is checked and parsed here instead.
-      response = await client.messages.create(
-        {
-          model: options.model,
-          max_tokens: 16_000,
-          system,
-          messages: [{ role: 'user', content }],
-          output_config: { format: OUTPUT_FORMAT, effort: options.effort },
-        },
-        { timeout: call.timeoutMs },
+      response = await withinDeadline(
+        client.messages.create(
+          {
+            model: options.model,
+            max_tokens: 16_000,
+            system,
+            messages: [{ role: 'user', content }],
+            output_config: { format: OUTPUT_FORMAT, effort: options.effort },
+          },
+          { timeout: call.timeoutMs, signal: controller.signal },
+        ),
+        createDeadline(call.timeoutMs, Date.now),
+        () => controller.abort(),
       );
     } catch (error) {
-      // A timeout is a connection error too, so it is told apart first.
-      if (error instanceof Anthropic.APIConnectionTimeoutError) {
+      // A timeout is a connection error too, so it is told apart first. Either timer may fire
+      // first; both mean this call ran out of its time, so the domain may retry it.
+      if (
+        error instanceof AnalysisTimeoutError ||
+        error instanceof Anthropic.APIConnectionTimeoutError
+      ) {
         throw new AnalysisTimeoutError(`the model call timed out after ${call.timeoutMs} ms`, true);
       }
       if (error instanceof Anthropic.APIConnectionError) {

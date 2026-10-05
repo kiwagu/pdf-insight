@@ -22,8 +22,9 @@ export interface RetryOptions {
 /**
  * Runs `fn` and, after a retryable failure, once more. Each attempt gets the single-call timeout or
  * the budget left, whichever is shorter; the retry runs only when at least `MIN_RETRY_BUDGET_MS`
- * would be left for it after the delay, otherwise the first failure stands. Once the budget is
- * spent no attempt starts at all.
+ * is left for it once the delay is over (checked before the delay, so a hopeless retry does not
+ * wait, and again after it, since a delay can take longer than asked), otherwise the first failure
+ * stands. Once the budget is spent no attempt starts at all.
  */
 export async function withOneRetry<T>(
   fn: (options: ModelCallOptions) => Promise<T>,
@@ -43,6 +44,7 @@ export async function withOneRetry<T>(
     if (!isRetryable(first)) throw first;
     if (deadline.remainingMs() - options.delayMs < MIN_RETRY_BUDGET_MS) throw first;
     await (options.sleep ?? defaultSleep)(options.delayMs);
+    if (deadline.remainingMs() < MIN_RETRY_BUDGET_MS) throw first;
     return attempt();
   }
 }

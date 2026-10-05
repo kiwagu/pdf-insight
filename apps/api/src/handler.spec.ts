@@ -235,3 +235,66 @@ describe('createHandler within the time budget', () => {
     expect((await pending).status).toBe(504);
   });
 });
+
+describe('createHandler budget before the analysis', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const timedAnswer = async (pending: Promise<Response>) => {
+    const started = Date.now();
+    let at: number | undefined;
+    void pending.then(() => (at = Date.now() - started));
+    await vi.advanceTimersByTimeAsync(ANALYSIS_BUDGET_MS + 60_000);
+    return { res: await pending, at };
+  };
+
+  it('answers a retryable timeout when the rate limiter does not answer within the budget', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const m = model();
+    const stuck: RateLimiter = {
+      consume: vi.fn<RateLimiter['consume']>(() => new Promise(() => undefined)),
+    };
+    const { res, at } = await timedAnswer(
+      handler({ model: m, limiter: stuck, now: () => new Date() })(post()),
+    );
+    expect(at).toBe(ANALYSIS_BUDGET_MS);
+    expect(res.status).toBe(504);
+    await expect(json(res)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'analysis_timeout', retryable: true },
+    });
+    expect(m.analyzeChunk).not.toHaveBeenCalled();
+  });
+  it('answers a retryable timeout when the request body stalls past the budget', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    let cancelled = false;
+    const stalled = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"fileName":'));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const init: RequestInit & { duplex: 'half' } = { body: stalled, duplex: 'half' };
+    const { res, at } = await timedAnswer(handler({ now: () => new Date() })(post(init)));
+    expect(at).toBe(ANALYSIS_BUDGET_MS);
+    expect(res.status).toBe(504);
+    await expect(json(res)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'analysis_timeout', retryable: true },
+    });
+    expect(cancelled).toBe(true);
+  });
+  it('answers a retryable timeout when a model call outlives the budget it was given', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    // A model that ignores its call timeout: the handler still answers at the deadline.
+    const deaf = vi.fn<ModelPort['analyzeChunk']>(() => new Promise(() => undefined));
+    const { res, at } = await timedAnswer(
+      handler({ model: model(deaf), now: () => new Date() })(post()),
+    );
+    expect(at).toBe(ANALYSIS_BUDGET_MS);
+    expect(res.status).toBe(504);
+  });
+});

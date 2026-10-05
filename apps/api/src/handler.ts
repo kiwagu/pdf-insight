@@ -10,6 +10,8 @@ import {
   DEFAULT_MAX_CHUNK_CHARS,
   ModelOutputInvalidError,
   ModelUpstreamError,
+  withinDeadline,
+  type Deadline,
   type ModelPort,
 } from '@pdf-insight/domain';
 import type { ApiEnv } from './env.ts';
@@ -31,14 +33,23 @@ const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
 
 class BodyTooLargeError extends Error {}
 
-/** Reads the body as text, giving up as soon as it exceeds `maxBytes`, whatever Content-Length said. */
-async function readCappedText(request: Request, maxBytes: number): Promise<string> {
+/**
+ * Reads the body as text, giving up as soon as it exceeds `maxBytes`, whatever Content-Length said,
+ * or when the deadline passes while a chunk is awaited (the body is then cancelled).
+ */
+async function readCappedText(
+  request: Request,
+  maxBytes: number,
+  deadline: Deadline,
+): Promise<string> {
   if (!request.body) return '';
   const reader = request.body.getReader();
   const parts: Uint8Array[] = [];
   let size = 0;
   for (;;) {
-    const { done, value } = await reader.read();
+    const { done, value } = await withinDeadline(reader.read(), deadline, () => {
+      reader.cancel().catch(() => undefined);
+    });
     if (done) break;
     size += value.byteLength;
     if (size > maxBytes) {
@@ -59,7 +70,7 @@ async function readCappedText(request: Request, maxBytes: number): Promise<strin
 export function createHandler(deps: HandlerDeps): (request: Request) => Promise<Response> {
   return async (request) => {
     // The budget counts from the request's arrival: reading the body and the rate limiter draw on
-    // the same wall clock as the model calls.
+    // the same wall clock as the model calls, and every await below is bounded by it.
     const deadline = createDeadline(ANALYSIS_BUDGET_MS, () => deps.now().getTime());
     const requestId = deps.createRequestId();
     const cors = resolveCors(request.headers.get('origin'), deps.env.ALLOWED_ORIGINS);
@@ -70,6 +81,8 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
       retryable: boolean,
       extra: Record<string, string> = {},
     ) => errorResponse(code, message, retryable, { ...headers, ...extra });
+    const timedOut = () =>
+      fail('analysis_timeout', 'The analysis did not finish within the time limit.', true);
 
     if (request.method === 'OPTIONS') {
       return cors.allowed
@@ -80,7 +93,12 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
 
     const path = new URL(request.url).pathname;
     if (request.method === 'GET' && path.endsWith('/healthz')) {
-      await deps.limiter.consume('healthz');
+      try {
+        await withinDeadline(deps.limiter.consume('healthz'), deadline);
+      } catch (error) {
+        if (error instanceof AnalysisTimeoutError) return timedOut();
+        throw error;
+      }
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { ...JSON_HEADERS, ...headers },
@@ -95,9 +113,10 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
 
     let json: unknown;
     try {
-      json = JSON.parse(await readCappedText(request, deps.env.MAX_BODY_BYTES));
+      json = JSON.parse(await readCappedText(request, deps.env.MAX_BODY_BYTES, deadline));
     } catch (error) {
       if (error instanceof BodyTooLargeError) return tooLarge();
+      if (error instanceof AnalysisTimeoutError) return timedOut();
       return fail('invalid_request', 'Body is not valid JSON.', false);
     }
     const parsed = analyzeRequestSchema.safeParse(json);
@@ -106,7 +125,13 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
       return fail('invalid_request', issues, false);
     }
 
-    const verdict = await deps.limiter.consume(clientIp(request));
+    let verdict: Awaited<ReturnType<RateLimiter['consume']>>;
+    try {
+      verdict = await withinDeadline(deps.limiter.consume(clientIp(request)), deadline);
+    } catch (error) {
+      if (error instanceof AnalysisTimeoutError) return timedOut();
+      throw error;
+    }
     if (!verdict.allowed) {
       return fail('rate_limited', 'Too many requests.', true, {
         'retry-after': String(verdict.retryAfterSeconds),
@@ -114,15 +139,20 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
     }
 
     try {
-      const result = await analyzeText(parsed.data, {
-        model: deps.model,
-        modelName: deps.env.LLM_MODEL,
-        createId: deps.createAnalysisId,
-        now: deps.now,
-        maxChunkChars: DEFAULT_MAX_CHUNK_CHARS,
-        retryDelayMs: 1000,
+      // Every model call already gets at most the budget left; the race is the backstop that
+      // answers at the deadline even if a call overruns its own timeout.
+      const result = await withinDeadline(
+        analyzeText(parsed.data, {
+          model: deps.model,
+          modelName: deps.env.LLM_MODEL,
+          createId: deps.createAnalysisId,
+          now: deps.now,
+          maxChunkChars: DEFAULT_MAX_CHUNK_CHARS,
+          retryDelayMs: 1000,
+          deadline,
+        }),
         deadline,
-      });
+      );
       const body: AnalyzeResponse = { ok: true, result };
       return new Response(JSON.stringify(body), {
         status: 200,
@@ -130,9 +160,7 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
       });
     } catch (error) {
       console.error('analyze failed', requestId, error instanceof Error ? error.message : error);
-      if (error instanceof AnalysisTimeoutError) {
-        return fail('analysis_timeout', 'The analysis did not finish within the time limit.', true);
-      }
+      if (error instanceof AnalysisTimeoutError) return timedOut();
       if (error instanceof ModelOutputInvalidError) {
         return fail('analysis_failed', 'The model did not return a valid analysis.', true);
       }
