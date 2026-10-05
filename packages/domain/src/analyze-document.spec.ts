@@ -73,9 +73,10 @@ describe('analyzeDocument', () => {
   it('turns an analyzer response that fails the schema into invalid_response', async () => {
     const { deps: d } = deps({
       analyzer: {
-        analyze: vi
-          .fn()
-          .mockResolvedValue({ ...result, amounts: [{ value: 1, currency: 'pln', context: '' }] }),
+        analyze: vi.fn().mockResolvedValue({
+          ...result,
+          amounts: [{ value: 1, currency: 'pln', context: '', page: null }],
+        }),
       },
     });
     await expect(analyzeDocument(file, d)).rejects.toMatchObject({

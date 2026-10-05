@@ -10,6 +10,9 @@ const iso4217 = z.enum([...ISO_4217_CODES, ...ISO_4217_HISTORIC_CODES], {
   message: 'expected an ISO 4217 currency code',
 });
 
+/** 1-based page an amount or date was read from; null when the model cannot tell. */
+const sourcePage = z.number().int().min(1).nullable();
+
 const llmDocumentSchema = z.object({
   language: iso639,
   type: z.enum(DOCUMENT_TYPES),
@@ -26,8 +29,10 @@ export const llmAnalysisSchema = z.object({
     organizations: z.array(z.string().min(1)),
     people: z.array(z.string().min(1)),
   }),
-  amounts: z.array(z.object({ value: z.number(), currency: iso4217, context: z.string() })),
-  dates: z.array(z.object({ date: isoDate, context: z.string() })),
+  amounts: z.array(
+    z.object({ value: z.number(), currency: iso4217, context: z.string(), page: sourcePage }),
+  ),
+  dates: z.array(z.object({ date: isoDate, context: z.string(), page: sourcePage })),
   keywords: z.array(z.string().min(1)),
 });
 
@@ -44,8 +49,15 @@ export const llmOutputFormatSchema = z.object({
   summary: z.string(),
   keyPoints: z.array(z.string()),
   entities: z.object({ organizations: z.array(z.string()), people: z.array(z.string()) }),
-  amounts: z.array(z.object({ value: z.number(), currency: z.string(), context: z.string() })),
-  dates: z.array(z.object({ date: z.string(), context: z.string() })),
+  amounts: z.array(
+    z.object({
+      value: z.number(),
+      currency: z.string(),
+      context: z.string(),
+      page: z.number().nullable(),
+    }),
+  ),
+  dates: z.array(z.object({ date: z.string(), context: z.string(), page: z.number().nullable() })),
   keywords: z.array(z.string()),
 });
 

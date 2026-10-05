@@ -37,13 +37,21 @@ export function numericTokens(text: string): number[] {
   return out;
 }
 
+/**
+ * Keeps an amount when its value occurs in the text layer, or when it may come from a scanned
+ * page image, which the text layer cannot confirm: its `page` is one of `scannedPages`, or it
+ * names no page while the document has scanned pages. Every other amount is dropped and counted.
+ */
 export function groundAmounts(
   analysis: LlmAnalysis,
   fullText: string,
+  scannedPages: number[],
 ): { analysis: LlmAnalysis; dropped: number } {
   const tokens = numericTokens(fullText);
-  const found = (value: number): boolean => tokens.some((t) => Math.abs(t - value) < 0.005);
-  const kept = analysis.amounts.filter((a) => found(a.value));
+  const inText = (value: number): boolean => tokens.some((t) => Math.abs(t - value) < 0.005);
+  const fromScan = (page: number | null): boolean =>
+    page === null ? scannedPages.length > 0 : scannedPages.includes(page);
+  const kept = analysis.amounts.filter((a) => inText(a.value) || fromScan(a.page));
   return {
     analysis: { ...analysis, amounts: kept },
     dropped: analysis.amounts.length - kept.length,

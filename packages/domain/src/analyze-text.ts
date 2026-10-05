@@ -81,8 +81,9 @@ export async function analyzeText(
           ...partials,
         ]);
 
+  const scannedPages = request.scannedPages.map((s) => s.page);
   const fullText = request.pageTexts.join('\n');
-  const { analysis, dropped } = groundAmounts(consolidated, fullText);
+  const { analysis, dropped } = groundAmounts(consolidated, fullText, scannedPages);
   const warnings =
     dropped > 0 ? [`${dropped} amount(s) dropped: value not found in the document text`] : [];
   const finished = deps.now();
@@ -94,7 +95,7 @@ export async function analyzeText(
       id: deps.createId(),
       model: deps.modelName,
       chunks: chunks.length,
-      scannedPages: request.scannedPages.map((s) => s.page),
+      scannedPages,
       warnings,
       durationMs: Math.max(0, finished.getTime() - started.getTime()),
       analyzedAt: finished.toISOString(),

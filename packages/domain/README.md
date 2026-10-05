@@ -18,8 +18,8 @@ the web-standard globals (`Blob`, `setTimeout`) that both the browser and Deno p
 
 - **Use cases**: `analyzeText(request, deps)` runs on the server side: it splits the page texts
   into chunks, analyzes them with at most three model calls in flight, reduces several partial
-  answers into one, merges the list fields, drops amounts not found in the text (with a
-  `meta.warnings` entry) and returns a schema-checked `AnalysisResult`; deps
+  answers into one, merges the list fields, drops amounts that are neither found in the text nor attributable to a
+  scanned page (with a `meta.warnings` entry) and returns a schema-checked `AnalysisResult`; deps
   `AnalyzeTextDeps { model, modelName, createId, now, maxChunkChars, retryDelayMs }`.
   `analyzeDocument(file, deps)` runs in the browser: it reports the `extracting` and `analyzing`
   stages, rejects a PDF with neither readable text nor scanned pages as `invalid_file`, validates
@@ -36,8 +36,10 @@ the web-standard globals (`Blob`, `setTimeout`) that both the browser and Deno p
   `chunkPages(pageTexts, { maxChars })` (splits only on page boundaries, labels each page as
   `[page N]`, keeps an oversized page whole), `mergeAnalyses(partials)` (first summary, first
   non-null title and date, case-insensitive dedupe, at most 7 key points),
-  `groundAmounts(analysis, fullText)` and `numericTokens(text)` (reads Polish and English number
-  formats, including amounts printed side by side in table rows), `withOneRetry(fn, { delayMs })`
+  `groundAmounts(analysis, fullText, scannedPages)` and `numericTokens(text)` (reads Polish and
+  English number formats, including amounts printed side by side in table rows; an amount whose
+  value is not in the text is kept only when its `page` is a scanned page, or when it names no page
+  and the document has scanned pages, since the text layer cannot confirm what a page image shows), `withOneRetry(fn, { delayMs })`
   (retries once when the error carries `retryable: true`).
 
 ## Scripts

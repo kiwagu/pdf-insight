@@ -10,8 +10,8 @@ const llm = (over: Partial<LlmAnalysis> = {}): LlmAnalysis => ({
   summary: 'Umowa dotyczy CRM. Trwa 24 miesiace. Wynagrodzenie 184 500 PLN.',
   keyPoints: ['24 miesiace'],
   entities: { organizations: ['Nordwave'], people: [] },
-  amounts: [{ value: 184500, currency: 'PLN', context: 'wynagrodzenie' }],
-  dates: [{ date: '2026-03-12', context: 'zawarcie' }],
+  amounts: [{ value: 184500, currency: 'PLN', context: 'wynagrodzenie', page: 1 }],
+  dates: [{ date: '2026-03-12', context: 'zawarcie', page: 1 }],
   keywords: ['CRM'],
   ...over,
 });
@@ -105,7 +105,7 @@ describe('analyzeText', () => {
       analyzeChunk: vi
         .fn()
         .mockResolvedValue(
-          llm({ amounts: [{ value: 1, currency: 'PLN', context: 'wartosc umowy' }] }),
+          llm({ amounts: [{ value: 1, currency: 'PLN', context: 'wartosc umowy', page: null }] }),
         ),
       reduce: vi.fn(),
     };
@@ -117,5 +117,23 @@ describe('analyzeText', () => {
     expect(result.meta.warnings).toEqual([
       '1 amount(s) dropped: value not found in the document text',
     ]);
+  });
+  it('keeps an amount read from a scanned page image although the text layer lacks it', async () => {
+    const annex = { value: 13100, currency: 'PLN' as const, context: 'abonament', page: 2 };
+    const model: ModelPort = {
+      analyzeChunk: vi.fn().mockResolvedValue(llm({ amounts: [annex] })),
+      reduce: vi.fn(),
+    };
+    const result = await analyzeText(
+      {
+        fileName: 'x.pdf',
+        pages: 2,
+        pageTexts: ['Wynagrodzenie 184 500,00 zl', ''],
+        scannedPages: [{ page: 2, imageJpegBase64: 'AAAA' }],
+      },
+      deps(model),
+    );
+    expect(result.amounts).toEqual([annex]);
+    expect(result.meta.warnings).toEqual([]);
   });
 });

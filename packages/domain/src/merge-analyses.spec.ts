@@ -32,15 +32,15 @@ describe('mergeAnalyses', () => {
   it('dedupes amounts by value, currency and context, and dates by date and context', () => {
     const merged = mergeAnalyses([
       partial({
-        amounts: [{ value: 184500, currency: 'PLN', context: 'wynagrodzenie' }],
-        dates: [{ date: '2026-03-12', context: 'zawarcie umowy' }],
+        amounts: [{ value: 184500, currency: 'PLN', context: 'wynagrodzenie', page: 3 }],
+        dates: [{ date: '2026-03-12', context: 'zawarcie umowy', page: 1 }],
       }),
       partial({
         amounts: [
-          { value: 184500, currency: 'PLN', context: 'Wynagrodzenie ' },
-          { value: 8600, currency: 'EUR', context: 'licencje' },
+          { value: 184500, currency: 'PLN', context: 'Wynagrodzenie ', page: null },
+          { value: 8600, currency: 'EUR', context: 'licencje', page: 4 },
         ],
-        dates: [{ date: '2026-03-12', context: 'Zawarcie umowy' }],
+        dates: [{ date: '2026-03-12', context: 'Zawarcie umowy', page: null }],
       }),
     ]);
     expect(merged.amounts).toHaveLength(2);
