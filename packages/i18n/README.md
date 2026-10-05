@@ -13,7 +13,8 @@ explicit `.ts` extension, so the same source runs under Bun, Node (Vitest) and V
 
 A missing string never throws: the translator returns the key itself, so a gap shows up on screen
 instead of breaking the page. Gaps are prevented earlier by the parity gate: `bun run lint` runs
-`src/validate.ts` after ESLint, and it fails when one catalog has a key the other lacks.
+`src/validate.ts` after ESLint, which prints nothing when the catalogs match and fails, listing the
+gaps, when one catalog has a key the other lacks.
 
 ## Key exports
 
@@ -22,9 +23,11 @@ instead of breaking the page. Gaps are prevented earlier by the parity gate: `bu
 - **Catalogs**: `catalogs` (`Record<Locale, Catalog>`), type `Catalog` (`Record<string, string>`),
   type `MessageKey` (the union of the keys in `pl.json`, so an unknown key is a type error).
 - **Translation**: `createTranslator(locale)` returns `t(key, params?)`; `{name}` placeholders are
-  replaced from `params`, and a placeholder without a matching param is left as is.
+  replaced from `params`, and a placeholder without a matching param is left as is. Keys and params
+  are looked up as own properties only, so a name such as `constructor` or `toString` never
+  resolves to an inherited object member.
 - **Parity**: `missingKeys(reference, candidate)` lists, sorted, the keys of `reference` that
-  `candidate` lacks.
+  `candidate` lacks as own properties.
 
 ## Adding a string
 

@@ -9,4 +9,7 @@ describe('catalog parity', () => {
   it('reports the keys one catalog lacks', () => {
     expect(missingKeys({ a: '1', b: '2' }, { a: '1' })).toEqual(['b']);
   });
+  it('reports a key named like an inherited object member', () => {
+    expect(missingKeys({ toString: 'Label' }, {})).toEqual(['toString']);
+  });
 });

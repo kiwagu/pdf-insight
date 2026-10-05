@@ -16,14 +16,19 @@ export function isLocale(value: string | null | undefined): value is Locale {
 
 export function createTranslator(locale: Locale) {
   const catalog = catalogs[locale];
+  // Own-property checks only: a key or placeholder named like an inherited object member
+  // (`constructor`, `toString`, `__proto__`) must not resolve to the prototype.
   return (key: MessageKey, params: Record<string, string | number> = {}): string => {
-    const template = catalog[key] ?? key;
-    return template.replace(/\{(\w+)\}/g, (_, name: string) => String(params[name] ?? `{${name}}`));
+    const template = (Object.hasOwn(catalog, key) ? catalog[key] : undefined) ?? key;
+    return template.replace(/\{(\w+)\}/g, (_, name: string) => {
+      const value = Object.hasOwn(params, name) ? params[name] : undefined;
+      return value === undefined ? `{${name}}` : String(value);
+    });
   };
 }
 
 export function missingKeys(reference: Catalog, candidate: Catalog): string[] {
   return Object.keys(reference)
-    .filter((k) => !(k in candidate))
+    .filter((k) => !Object.hasOwn(candidate, k))
     .sort();
 }
