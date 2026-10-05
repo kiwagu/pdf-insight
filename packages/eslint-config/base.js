@@ -18,5 +18,11 @@ export const base = tseslint.config(
       ],
     },
   },
+  {
+    // Config files at a package root (eslint.config.js, vitest.config.ts, vite.config.ts) sit
+    // outside the package's tsconfig `include`, so they are linted without type information.
+    files: ['**/*.js', '**/*.config.ts'],
+    ...tseslint.configs.disableTypeChecked,
+  },
   { ignores: ['dist/**', 'node_modules/**', 'supabase/.temp/**'] },
 );
