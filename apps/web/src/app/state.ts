@@ -1,5 +1,10 @@
 import type { AnalysisResult } from '@pdf-insight/contracts';
-import type { AnalysisError, AnalysisErrorCode, Stage } from '@pdf-insight/domain';
+import type {
+  AnalysisError,
+  AnalysisErrorCode,
+  AnalysisErrorParams,
+  Stage,
+} from '@pdf-insight/domain';
 import type { MessageKey } from '@pdf-insight/i18n';
 
 export type AppState =
@@ -7,7 +12,13 @@ export type AppState =
   | { status: 'extracting' }
   | { status: 'analyzing'; pages: number | undefined }
   | { status: 'done'; result: AnalysisResult }
-  | { status: 'error'; code: AnalysisErrorCode; message: string; retryable: boolean };
+  | {
+      status: 'error';
+      code: AnalysisErrorCode;
+      message: string;
+      retryable: boolean;
+      params: AnalysisErrorParams;
+    };
 
 export type AppAction =
   | { type: 'start' }
@@ -36,6 +47,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
         code: action.error.code,
         message: action.error.message,
         retryable: action.error.retryable,
+        params: action.error.params,
       };
     case 'reset':
       return initialState;
@@ -52,8 +64,11 @@ const ERROR_KEYS: Record<AnalysisErrorCode, MessageKey> = {
   rate_limited: 'error.rate_limited',
   analysis_failed: 'error.analysis_failed',
   upstream_error: 'error.upstream_error',
+  analysis_timeout: 'error.analysis_timeout',
   invalid_file: 'error.invalid_file',
   too_large: 'error.too_large',
+  page_too_large: 'error.page_too_large',
+  ocr_limit: 'error.ocr_limit',
   extraction_failed: 'error.extraction_failed',
   network: 'error.network',
   invalid_response: 'error.invalid_response',

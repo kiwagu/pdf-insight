@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeRequestSchema, analyzeResponseSchema, MAX_SCANNED_PAGES } from './api.schema.ts';
+import {
+  ANALYSIS_BUDGET_MS,
+  analyzeRequestSchema,
+  analyzeResponseSchema,
+  CLIENT_TIMEOUT_MS,
+  MAX_SCANNED_PAGES,
+} from './api.schema.ts';
 
 describe('analyzeRequestSchema', () => {
   const base = { fileName: 'a.pdf', pages: 2, pageTexts: ['hello', ''] };
@@ -41,6 +47,13 @@ describe('analyzeResponseSchema', () => {
     });
     expect(r.success).toBe(true);
   });
+  it('accepts the timeout error of a spent analysis budget', () => {
+    const r = analyzeResponseSchema.safeParse({
+      ok: false,
+      error: { code: 'analysis_timeout', message: 'too slow', retryable: true },
+    });
+    expect(r.success).toBe(true);
+  });
   it('rejects an unknown error code', () => {
     expect(
       analyzeResponseSchema.safeParse({
@@ -48,5 +61,12 @@ describe('analyzeResponseSchema', () => {
         error: { code: 'boom', message: 'x', retryable: false },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('time budget', () => {
+  it('gives the server 140 s and lets the browser wait 10 s longer for the answer', () => {
+    expect(ANALYSIS_BUDGET_MS).toBe(140_000);
+    expect(CLIENT_TIMEOUT_MS).toBe(150_000);
   });
 });

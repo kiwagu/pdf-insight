@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { AnalysisResult } from '@pdf-insight/contracts';
+import { MAX_PAGE_TEXT_LENGTH, type AnalysisResult } from '@pdf-insight/contracts';
 import {
   AnalysisError,
   type DocumentAnalyzer,
@@ -9,6 +9,7 @@ import {
   type TextExtractor,
 } from '@pdf-insight/domain';
 import { describe, expect, it, vi } from 'vitest';
+import { createHttpAnalyzer } from '../api/analyze-client';
 import { I18nProvider } from '../lib/i18n';
 import { entryOf, extracted, fakeContainer, pdfWithHeldCheck } from '../test/fake-container';
 import { contractResult, shortResult as result } from '../test/fixtures';
@@ -149,6 +150,44 @@ describe('App', () => {
     await userEvent.upload(screen.getByTestId('file-input'), pdf);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('zbyt duży'));
     expect(c.analyzer.analyze).not.toHaveBeenCalled();
+  });
+  it('explains a page with too much text, naming the page and the limit, and offers no retry', async () => {
+    const long: ExtractedDocument = {
+      ...extracted,
+      pages: 3,
+      pageTexts: [...extracted.pageTexts, 'x'.repeat(MAX_PAGE_TEXT_LENGTH + 1), ''],
+    };
+    const fetchImpl = vi.fn<typeof fetch>();
+    const c: Container = {
+      ...container(undefined, [], vi.fn<TextExtractor['extract']>().mockResolvedValue(long)),
+      analyzer: createHttpAnalyzer('https://api.example/analyze', { fetchImpl }),
+    };
+    renderApp(c);
+    await userEvent.upload(screen.getByTestId('file-input'), pdf);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Strona 2'));
+    expect(screen.getByRole('alert')).toHaveTextContent(String(MAX_PAGE_TEXT_LENGTH));
+    expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).not.toBeInTheDocument();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it('refuses a long fully scanned document, naming its page count and the limit', async () => {
+    const scanned: ExtractedDocument = {
+      fileName: 'scan.pdf',
+      pages: 8,
+      pageTexts: Array.from({ length: 8 }, () => ''),
+      scannedPages: [1, 2, 3, 4, 5].map((page) => ({ page, imageJpegBase64: 'AAAA' })),
+    };
+    const c = container(
+      undefined,
+      [],
+      vi.fn<TextExtractor['extract']>().mockResolvedValue(scanned),
+    );
+    renderApp(c);
+    await userEvent.upload(screen.getByTestId('file-input'), pdf);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Liczba stron: 8'));
+    expect(screen.getByRole('alert')).toHaveTextContent('najwyżej 5');
+    expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).not.toBeInTheDocument();
+    expect(c.analyzer.analyze).not.toHaveBeenCalled();
+    expect(c.history.save).not.toHaveBeenCalled();
   });
   it('restores a result from the history and clears the history', async () => {
     const entry: HistoryEntry = {

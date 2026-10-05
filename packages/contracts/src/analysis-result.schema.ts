@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ISO_4217_CODES, ISO_4217_HISTORIC_CODES, ISO_639_1_CODES } from './iso-codes.ts';
+import { finalSummarySchema, summaryTextSchema } from './summary.ts';
 
 export const DOCUMENT_TYPES = ['faktura', 'umowa', 'oferta', 'raport', 'inne'] as const;
 
@@ -23,7 +24,7 @@ const llmDocumentSchema = z.object({
 /** What the model is asked to return. Code adds fileName, pages and meta afterwards. */
 export const llmAnalysisSchema = z.object({
   document: llmDocumentSchema,
-  summary: z.string().min(1).max(1500),
+  summary: summaryTextSchema,
   keyPoints: z.array(z.string().min(1)).max(7),
   entities: z.object({
     organizations: z.array(z.string().min(1)),
@@ -35,6 +36,11 @@ export const llmAnalysisSchema = z.object({
   dates: z.array(z.object({ date: isoDate, context: z.string(), page: sourcePage })),
   keywords: z.array(z.string().min(1)),
 });
+
+/** The answer for the whole document (a single-chunk analysis or the reduce step): its summary is
+ *  the one the user reads, so it is also held to 3 to 5 sentences. A part's summary is only an
+ *  input to the reduce step and is not counted. */
+export const llmFinalAnalysisSchema = llmAnalysisSchema.extend({ summary: finalSummarySchema });
 
 /** Loose twin of llmAnalysisSchema for the model's output format: structured outputs
  *  accept only a JSON Schema subset, so the date, code-list and length checks live in the

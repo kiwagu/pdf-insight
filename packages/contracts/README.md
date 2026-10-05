@@ -39,6 +39,12 @@ and Deno.
   validation accepts both active and withdrawn codes: an older contract or invoice carries real
   amounts in a currency that no longer exists, and that is not a model error, while an unknown code
   such as `ZZZ` still fails.
+- **Summary rule**: `countSentences(text)` (abbreviation-aware), `summaryTextSchema` (non-blank),
+  `finalSummarySchema` (`SUMMARY_MIN_SENTENCES` 3 to `SUMMARY_MAX_SENTENCES` 5 sentences, at most
+  `SUMMARY_MAX_LENGTH` characters) and `llmFinalAnalysisSchema`, the strict schema applied to the
+  whole-document answer; part summaries only need to be non-blank.
+- **Time budget**: `ANALYSIS_BUDGET_MS` (140 000, the function's budget for one analysis) and
+  `CLIENT_TIMEOUT_MS` (150 000, how long the browser waits).
 - **JSON Schema**: `analysisResultJsonSchema()` returns the result schema as JSON Schema, for
   documentation and for consumers outside TypeScript; its output is committed as
   `docs/analysis-result.schema.json` at the repository root.

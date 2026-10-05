@@ -1,4 +1,4 @@
-import { MAX_SCANNED_PAGES } from '@pdf-insight/contracts';
+import { MAX_IMAGE_BASE64_LENGTH, MAX_SCANNED_PAGES } from '@pdf-insight/contracts';
 import {
   AnalysisError,
   isScannedPage,
@@ -14,6 +14,7 @@ import {
   type PDFPageProxy,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+import { encodeWithinCap } from './fit-image';
 import { joinTextItems } from './page-text';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -23,16 +24,16 @@ GlobalWorkerOptions.workerSrc = workerUrl;
 const WASM_URL = `${import.meta.env.BASE_URL}pdfjs/wasm/`;
 const ICC_URL = `${import.meta.env.BASE_URL}pdfjs/iccs/`;
 
-const RENDER_SCALE = 1.5;
-const JPEG_QUALITY = 0.8;
-
-async function renderPageToJpegBase64(page: PDFPageProxy): Promise<string> {
-  const viewport = page.getViewport({ scale: RENDER_SCALE });
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  await page.render({ canvas, viewport }).promise;
-  return canvas.toDataURL('image/jpeg', JPEG_QUALITY).split(',')[1] ?? '';
+/** The page as a base64 JPEG within the API's image cap, or null when it cannot be made to fit. */
+function renderPageToJpegBase64(page: PDFPageProxy): Promise<string | null> {
+  return encodeWithinCap(async (scale) => {
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    await page.render({ canvas, viewport }).promise;
+    return (quality) => canvas.toDataURL('image/jpeg', quality).split(',')[1] ?? '';
+  }, MAX_IMAGE_BASE64_LENGTH);
 }
 
 /** The pdf.js text extractor. Loaded on the first upload through `createPdfJsExtractor`, so
@@ -57,7 +58,10 @@ export function createPdfJsImpl(): TextExtractor {
           const text = joinTextItems(content.items.filter((i) => 'str' in i));
           pageTexts.push(text);
           if (isScannedPage(text) && scannedPages.length < maxScanned) {
-            scannedPages.push({ page: n, imageJpegBase64: await renderPageToJpegBase64(page) });
+            // A page that cannot fit even at the smallest scale is left out, so the analysis
+            // reports it among the pages without a text layer that were not analysed.
+            const image = await renderPageToJpegBase64(page);
+            if (image !== null) scannedPages.push({ page: n, imageJpegBase64: image });
           }
         }
         return {

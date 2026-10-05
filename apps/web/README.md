@@ -20,7 +20,8 @@ each of them:
 - `DocumentAnalyzer`: `createHttpAnalyzer(baseUrl)` posts the extracted document to the API,
   parses the response envelope with the contract schema and maps transport failures to
   `network`, unparseable or off-contract bodies to `invalid_response` and API error envelopes
-  to their own code. Requests time out after 90 seconds.
+  to their own code. Requests time out after 150 seconds (`CLIENT_TIMEOUT_MS`), longer than the
+  function's own 140 s budget, so a late success is not discarded.
 - `AnalysisHistory`: `createLocalStorageHistory(storage)` keeps the newest ten results under
   `pdf-insight.history.v1`, validates what it reads back and falls back to memory when storage
   is unavailable or full.
@@ -28,7 +29,12 @@ each of them:
 `createContainer()` wires the three adapters together. Before an upload reaches the use case,
 `validatePdfFile` rejects files over 10 MB and anything that is not named or typed as a PDF or
 does not start with the PDF magic bytes; after extraction, `exceedsPayloadCap` stops a document
-whose request would exceed the API body limit before anything is sent.
+whose request would exceed the API body limit before anything is sent, the request is checked
+against `analyzeRequestSchema` (a page over the text cap is `page_too_large`), and a fully scanned
+document with more pages without a text layer than `MAX_SCANNED_PAGES` is refused as `ocr_limit`.
+Page images are re-encoded at a lower JPEG quality, then rendered at a smaller scale, until they
+fit the image cap; an empty encoding never counts as a fit, and a page that cannot fit is left
+out and reported among the skipped pages.
 The UI state is a small reducer (`idle`, `extracting`, `analyzing`, `done`, `error`), and every
 error code maps to an `error.<code>` message of `@pdf-insight/i18n` (Polish by default, English
 on request, the choice kept in `localStorage`).

@@ -7,6 +7,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   rate_limited: 429,
   analysis_failed: 502,
   upstream_error: 503,
+  analysis_timeout: 504,
 };
 
 export function errorResponse(

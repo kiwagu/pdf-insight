@@ -46,6 +46,11 @@ createAnalysisId, now }`.
   answer is parsed, and the strict `llmAnalysisSchema` applied afterwards. A refusal is a
   non-retryable upstream error; a truncated, non-JSON or schema-violating answer is
   `ModelOutputInvalidError`. The SDK does no retries of its own.
+  Each call runs against its own timer, derived from the deadline and kept active through body
+  parsing (the request is aborted when it fires); the SDK's own timeout and that abort both
+  become `AnalysisTimeoutError`. The handler bounds the body read, the rate-limit call and the
+  analysis itself by the same 140 s deadline and answers 504 `analysis_timeout` (retryable) when
+  it expires.
 - `createPostgrestRateLimiter({ supabaseUrl, serviceRoleKey, limit, windowSeconds })`: calls the
   `consume_rate_limit` RPC from `supabase/migrations/20261005120000_rate_limits.sql`.
 - `buildChunkMessages`, `buildReduceMessages`, `SYSTEM_PROMPT`: the prompt. The document text is

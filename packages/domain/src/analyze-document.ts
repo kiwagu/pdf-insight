@@ -27,6 +27,17 @@ export async function analyzeDocument(
       false,
     );
   }
+  // A fully scanned document longer than the image cap would be analysed only in part, so it is
+  // refused. A document with some text keeps its partial analysis and a skipped-pages warning.
+  const textless = doc.pageTexts.filter(isScannedPage).length;
+  if (!hasText && textless > deps.maxScannedPages) {
+    throw new AnalysisError(
+      'ocr_limit',
+      `The document has ${textless} pages without a text layer; at most ${deps.maxScannedPages} can be read as images.`,
+      false,
+      { pages: textless, max: deps.maxScannedPages },
+    );
+  }
   deps.onStage('analyzing', { pages: doc.pages });
   const raw = await deps.analyzer.analyze(doc);
   const parsed = analysisResultSchema.safeParse(raw);

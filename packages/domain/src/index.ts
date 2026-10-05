@@ -5,6 +5,7 @@ export * from './scanned-page.ts';
 export * from './chunk-pages.ts';
 export * from './merge-analyses.ts';
 export * from './ground-amounts.ts';
+export * from './deadline.ts';
 export * from './retry.ts';
 export * from './analyze-text.ts';
 export * from './analyze-document.ts';
