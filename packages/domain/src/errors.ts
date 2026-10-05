@@ -36,3 +36,17 @@ export class ModelUpstreamError extends Error {
     this.name = 'ModelUpstreamError';
   }
 }
+
+/**
+ * A model call that ran out of time. Retryable when it hit its own single-call timeout and budget
+ * remains; not retryable when the analysis budget is spent before the call could start.
+ */
+export class AnalysisTimeoutError extends Error {
+  constructor(
+    message: string,
+    public readonly retryable: boolean,
+  ) {
+    super(message);
+    this.name = 'AnalysisTimeoutError';
+  }
+}

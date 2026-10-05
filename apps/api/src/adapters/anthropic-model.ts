@@ -2,9 +2,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { llmAnalysisSchema, llmOutputFormatSchema, type LlmAnalysis } from '@pdf-insight/contracts';
 import {
+  AnalysisTimeoutError,
+  MODEL_CALL_TIMEOUT_MS,
   ModelOutputInvalidError,
   ModelUpstreamError,
   type ChunkInput,
+  type ModelCallOptions,
   type ModelPort,
   type ReduceInput,
 } from '@pdf-insight/domain';
@@ -21,22 +24,38 @@ interface Options {
 const OUTPUT_FORMAT = zodOutputFormat(llmOutputFormatSchema);
 
 export function createAnthropicModel(options: Options): ModelPort {
-  // Retries are owned by the domain (one retry for retryable failures), so the SDK does none.
-  const client = new Anthropic({ apiKey: options.apiKey, maxRetries: 0, timeout: 60_000 });
+  // Retries and the time budget are owned by the domain: the SDK retries nothing, and each call
+  // carries the timeout the domain hands it.
+  const client = new Anthropic({
+    apiKey: options.apiKey,
+    maxRetries: 0,
+    timeout: MODEL_CALL_TIMEOUT_MS,
+  });
 
-  async function complete(system: string, content: MessageContentBlock[]): Promise<LlmAnalysis> {
+  async function complete(
+    system: string,
+    content: MessageContentBlock[],
+    call: ModelCallOptions,
+  ): Promise<LlmAnalysis> {
     let response: Anthropic.Message;
     try {
       // `create`, not `parse`: `parse` throws a plain SDK error on a truncated or refused answer
       // before the stop reason can be read, so the answer is checked and parsed here instead.
-      response = await client.messages.create({
-        model: options.model,
-        max_tokens: 16_000,
-        system,
-        messages: [{ role: 'user', content }],
-        output_config: { format: OUTPUT_FORMAT, effort: options.effort },
-      });
+      response = await client.messages.create(
+        {
+          model: options.model,
+          max_tokens: 16_000,
+          system,
+          messages: [{ role: 'user', content }],
+          output_config: { format: OUTPUT_FORMAT, effort: options.effort },
+        },
+        { timeout: call.timeoutMs },
+      );
     } catch (error) {
+      // A timeout is a connection error too, so it is told apart first.
+      if (error instanceof Anthropic.APIConnectionTimeoutError) {
+        throw new AnalysisTimeoutError(`the model call timed out after ${call.timeoutMs} ms`, true);
+      }
       if (error instanceof Anthropic.APIConnectionError) {
         throw new ModelUpstreamError(error.message, true);
       }
@@ -66,13 +85,13 @@ export function createAnthropicModel(options: Options): ModelPort {
   }
 
   return {
-    analyzeChunk: (input: ChunkInput) => {
+    analyzeChunk: (input: ChunkInput, call: ModelCallOptions) => {
       const { system, content } = buildChunkMessages(input);
-      return complete(system, content);
+      return complete(system, content, call);
     },
-    reduce: (input: ReduceInput) => {
+    reduce: (input: ReduceInput, call: ModelCallOptions) => {
       const { system, content } = buildReduceMessages(input);
-      return complete(system, content);
+      return complete(system, content, call);
     },
   };
 }

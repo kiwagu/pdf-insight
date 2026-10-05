@@ -23,6 +23,7 @@
   "error.invalid_request": "The server rejected the request. Try again.",
   "error.analysis_failed": "The AI model did not return a valid answer. Try again.",
   "error.upstream_error": "The AI service is temporarily unavailable. Try again in a moment.",
+  "error.analysis_timeout": "The analysis took too long and was stopped. Try again in a moment, or try a shorter document.",
   "error.invalid_response": "The server response failed validation. Try again.",
   "result.summary": "Summary",
   "result.keyPoints": "Key points",

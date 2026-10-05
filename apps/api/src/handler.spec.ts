@@ -1,6 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { AnalyzeResponse, LlmAnalysis } from '@pdf-insight/contracts';
-import { ModelOutputInvalidError, ModelUpstreamError, type ModelPort } from '@pdf-insight/domain';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ANALYSIS_BUDGET_MS, type AnalyzeResponse, type LlmAnalysis } from '@pdf-insight/contracts';
+import {
+  AnalysisTimeoutError,
+  ModelOutputInvalidError,
+  ModelUpstreamError,
+  type ModelPort,
+} from '@pdf-insight/domain';
 import type { ApiEnv } from './env.ts';
 import { createHandler } from './handler.ts';
 import type { RateLimiter } from './ports.ts';
@@ -33,14 +38,14 @@ const model = (
   analyzeChunk = vi.fn<ModelPort['analyzeChunk']>().mockResolvedValue(llm),
 ): ModelPort => ({ analyzeChunk, reduce: vi.fn<ModelPort['reduce']>().mockResolvedValue(llm) });
 
-function handler(over: { model?: ModelPort; limiter?: RateLimiter } = {}) {
+function handler(over: { model?: ModelPort; limiter?: RateLimiter; now?: () => Date } = {}) {
   return createHandler({
     env,
     model: over.model ?? model(),
     limiter: over.limiter ?? okLimiter,
     createRequestId: () => 'req_test',
     createAnalysisId: () => 'ana_test',
-    now: () => new Date('2026-10-05T12:00:00.000Z'),
+    now: over.now ?? (() => new Date('2026-10-05T12:00:00.000Z')),
   });
 }
 
@@ -167,5 +172,66 @@ describe('createHandler', () => {
       ok: false,
       error: { code: 'upstream_error', retryable: false },
     });
+  });
+});
+
+describe('createHandler within the time budget', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A model call that never answers: it fails as a timeout once its own timeout has passed. */
+  const hangingCall = (timeouts: number[]) =>
+    vi.fn<ModelPort['analyzeChunk']>(
+      (_input, { timeoutMs }) =>
+        new Promise((_resolve, reject) => {
+          timeouts.push(timeoutMs);
+          setTimeout(() => reject(new AnalysisTimeoutError('timed out', true)), timeoutMs);
+        }),
+    );
+  const answerTime = (pending: Promise<Response>, started: number) => {
+    let at: number | undefined;
+    void pending.then(() => (at = Date.now() - started));
+    return () => at;
+  };
+
+  it('retries a hanging model call once and answers a retryable timeout within the budget', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const timeouts: number[] = [];
+    const started = Date.now();
+    const pending = handler({ model: model(hangingCall(timeouts)), now: () => new Date() })(post());
+    const answeredAfter = answerTime(pending, started);
+    await vi.advanceTimersByTimeAsync(ANALYSIS_BUDGET_MS);
+    expect(timeouts).toEqual([60_000, 60_000]);
+    expect(answeredAfter()).toBe(121_000);
+    const res = await pending;
+    expect(res.status).toBe(504);
+    await expect(json(res)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'analysis_timeout', retryable: true },
+    });
+  });
+  it('counts the budget from the arrival of the request', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const slowLimiter: RateLimiter = {
+      consume: vi.fn<RateLimiter['consume']>(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ allowed: true, retryAfterSeconds: 0 }), 100_000),
+          ),
+      ),
+    };
+    const timeouts: number[] = [];
+    const started = Date.now();
+    const pending = handler({
+      model: model(hangingCall(timeouts)),
+      limiter: slowLimiter,
+      now: () => new Date(),
+    })(post());
+    const answeredAfter = answerTime(pending, started);
+    await vi.advanceTimersByTimeAsync(ANALYSIS_BUDGET_MS);
+    expect(timeouts).toEqual([40_000]);
+    expect(answeredAfter()).toBe(ANALYSIS_BUDGET_MS);
+    expect((await pending).status).toBe(504);
   });
 });

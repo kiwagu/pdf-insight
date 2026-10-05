@@ -1,6 +1,12 @@
-import { analyzeRequestSchema, type AnalyzeResponse } from '@pdf-insight/contracts';
 import {
+  ANALYSIS_BUDGET_MS,
+  analyzeRequestSchema,
+  type AnalyzeResponse,
+} from '@pdf-insight/contracts';
+import {
+  AnalysisTimeoutError,
   analyzeText,
+  createDeadline,
   DEFAULT_MAX_CHUNK_CHARS,
   ModelOutputInvalidError,
   ModelUpstreamError,
@@ -52,6 +58,9 @@ async function readCappedText(request: Request, maxBytes: number): Promise<strin
 
 export function createHandler(deps: HandlerDeps): (request: Request) => Promise<Response> {
   return async (request) => {
+    // The budget counts from the request's arrival: reading the body and the rate limiter draw on
+    // the same wall clock as the model calls.
+    const deadline = createDeadline(ANALYSIS_BUDGET_MS, () => deps.now().getTime());
     const requestId = deps.createRequestId();
     const cors = resolveCors(request.headers.get('origin'), deps.env.ALLOWED_ORIGINS);
     const headers = { ...cors.headers, 'x-request-id': requestId };
@@ -112,6 +121,7 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
         now: deps.now,
         maxChunkChars: DEFAULT_MAX_CHUNK_CHARS,
         retryDelayMs: 1000,
+        deadline,
       });
       const body: AnalyzeResponse = { ok: true, result };
       return new Response(JSON.stringify(body), {
@@ -120,6 +130,9 @@ export function createHandler(deps: HandlerDeps): (request: Request) => Promise<
       });
     } catch (error) {
       console.error('analyze failed', requestId, error instanceof Error ? error.message : error);
+      if (error instanceof AnalysisTimeoutError) {
+        return fail('analysis_timeout', 'The analysis did not finish within the time limit.', true);
+      }
       if (error instanceof ModelOutputInvalidError) {
         return fail('analysis_failed', 'The model did not return a valid analysis.', true);
       }

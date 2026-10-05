@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { CLIENT_TIMEOUT_MS } from '@pdf-insight/contracts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpAnalyzer } from './analyze-client';
 
 const doc = { fileName: 'a.pdf', pages: 1, pageTexts: ['hello'], scannedPages: [] };
@@ -31,7 +32,23 @@ const okBody = {
   },
 };
 
+/** A fetch that never answers and rejects as soon as its signal aborts. */
+const hangingFetch = () =>
+  vi
+    .fn()
+    .mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_, reject) =>
+          init.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          ),
+        ),
+    );
+
 describe('createHttpAnalyzer', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it('posts the request and returns the result', async () => {
     const fetchImpl = vi
       .fn()
@@ -72,18 +89,11 @@ describe('createHttpAnalyzer', () => {
     ).rejects.toMatchObject({ code: 'invalid_response' });
   });
   it('aborts after the timeout', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockImplementation(
-        (_url: string, init: RequestInit) =>
-          new Promise((_, reject) =>
-            init.signal?.addEventListener('abort', () =>
-              reject(new DOMException('aborted', 'AbortError')),
-            ),
-          ),
-      );
     await expect(
-      createHttpAnalyzer('https://api.example/analyze', { fetchImpl, timeoutMs: 10 }).analyze(doc),
+      createHttpAnalyzer('https://api.example/analyze', {
+        fetchImpl: hangingFetch(),
+        timeoutMs: 10,
+      }).analyze(doc),
     ).rejects.toMatchObject({ code: 'network' });
   });
   it('keeps the timeout armed while the body is read', async () => {
@@ -101,5 +111,28 @@ describe('createHttpAnalyzer', () => {
     await expect(
       createHttpAnalyzer('https://api.example/analyze', { fetchImpl, timeoutMs: 20 }).analyze(doc),
     ).rejects.toMatchObject({ code: 'network', retryable: true });
+  });
+});
+
+describe('createHttpAnalyzer default deadline', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('waits 150 s, longer than the server budget, then fails with the retryable timeout', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const failure = createHttpAnalyzer('https://api.example/analyze', {
+      fetchImpl: hangingFetch(),
+    }).analyze(doc);
+    let settled = false;
+    failure.catch(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(CLIENT_TIMEOUT_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(failure).rejects.toMatchObject({
+      code: 'network',
+      message: 'The analysis service stopped responding.',
+      retryable: true,
+    });
   });
 });

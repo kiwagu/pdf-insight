@@ -1,4 +1,8 @@
-import { analyzeResponseSchema, type AnalyzeRequestInput } from '@pdf-insight/contracts';
+import {
+  analyzeResponseSchema,
+  CLIENT_TIMEOUT_MS,
+  type AnalyzeRequestInput,
+} from '@pdf-insight/contracts';
 import { AnalysisError, type DocumentAnalyzer, type ExtractedDocument } from '@pdf-insight/domain';
 
 /** The request body sent to the analyze endpoint; the payload guard measures this same value. */
@@ -16,7 +20,8 @@ export function createHttpAnalyzer(
   options: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
 ): DocumentAnalyzer {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutMs = options.timeoutMs ?? 90_000;
+  // Longer than the server's own analysis budget, so a slow but successful answer still arrives.
+  const timeoutMs = options.timeoutMs ?? CLIENT_TIMEOUT_MS;
   return {
     async analyze(doc) {
       // The timeout covers the whole exchange, body included: a stalled body aborts too.
@@ -33,6 +38,9 @@ export function createHttpAnalyzer(
             signal: controller.signal,
           });
         } catch {
+          if (controller.signal.aborted) {
+            throw new AnalysisError('network', 'The analysis service stopped responding.', true);
+          }
           throw new AnalysisError('network', 'Could not reach the analysis service.', true);
         }
         try {

@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LlmAnalysis } from '@pdf-insight/contracts';
 import { analysisResultSchema } from '@pdf-insight/contracts';
 import { analyzeText } from './analyze-text.ts';
-import { ModelOutputInvalidError, ModelUpstreamError } from './errors.ts';
+import { createDeadline } from './deadline.ts';
+import { AnalysisTimeoutError, ModelOutputInvalidError, ModelUpstreamError } from './errors.ts';
 import type { ModelPort } from './ports.ts';
 
 const llm = (over: Partial<LlmAnalysis> = {}): LlmAnalysis => ({
@@ -263,5 +264,66 @@ describe('analyzeText', () => {
     release();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(analyzeChunk.mock.calls.map(([input]) => input.chunk.index)).toEqual([0, 1, 2]);
+  });
+});
+
+describe('analyzeText within the time budget', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A model whose every call takes `callMs`, or fails as a timeout when its own timeout is shorter. */
+  const slowModel = (callMs: number) => {
+    const timeouts: { chunk: number[]; reduce: number[] } = { chunk: [], reduce: [] };
+    const answer = (timeoutMs: number): Promise<LlmAnalysis> =>
+      new Promise((resolve, reject) => {
+        if (timeoutMs < callMs) {
+          setTimeout(() => reject(new AnalysisTimeoutError('timed out', true)), timeoutMs);
+        } else {
+          setTimeout(() => resolve(llm()), callMs);
+        }
+      });
+    const model: ModelPort = {
+      analyzeChunk: (_input, { timeoutMs }) => {
+        timeouts.chunk.push(timeoutMs);
+        return answer(timeoutMs);
+      },
+      reduce: (_input, { timeoutMs }) => {
+        timeouts.reduce.push(timeoutMs);
+        return answer(timeoutMs);
+      },
+    };
+    return { model, timeouts };
+  };
+
+  it('shares one deadline between the chunk workers and the reduce step', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-05T12:00:00.000Z') });
+    const { model, timeouts } = slowModel(30_000);
+    const pageTexts = Array.from({ length: 6 }, () => 'x'.repeat(95));
+    const run = analyzeText(
+      { fileName: 'x.pdf', pages: 6, pageTexts, scannedPages: [] },
+      { ...deps(model), deadline: createDeadline(140_000, Date.now) },
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(timeouts.chunk).toEqual([60_000, 60_000, 60_000, 60_000, 60_000, 60_000]);
+    expect(timeouts.reduce).toEqual([60_000]);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(run).resolves.toMatchObject({ meta: { chunks: 6 } });
+  });
+  it('gives the last calls only what is left and fails as a timeout at the deadline', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-05T12:00:00.000Z') });
+    const { model, timeouts } = slowModel(50_000);
+    const pageTexts = Array.from({ length: 9 }, () => 'x'.repeat(95));
+    const run = analyzeText(
+      { fileName: 'x.pdf', pages: 9, pageTexts, scannedPages: [] },
+      { ...deps(model), deadline: createDeadline(140_000, Date.now) },
+    );
+    const settled = expect(run).rejects.toBeInstanceOf(AnalysisTimeoutError);
+    await vi.advanceTimersByTimeAsync(140_000);
+    await settled;
+    expect(timeouts.chunk).toEqual([
+      60_000, 60_000, 60_000, 60_000, 60_000, 60_000, 40_000, 40_000, 40_000,
+    ]);
+    expect(timeouts.reduce).toEqual([]);
   });
 });

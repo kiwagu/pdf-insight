@@ -5,6 +5,12 @@ export const MAX_SCANNED_PAGES = 5;
 export const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
 export const MAX_PAGE_TEXT_LENGTH = 50_000;
 
+/** Wall-clock budget of one analysis on the server, from the request's arrival to the answer,
+ *  kept under the Edge Function's 150 s wall-clock limit. Every model call draws on it. */
+export const ANALYSIS_BUDGET_MS = 140_000;
+/** How long the browser waits for the answer: the server budget plus a margin for the transfer. */
+export const CLIENT_TIMEOUT_MS = ANALYSIS_BUDGET_MS + 10_000;
+
 export const scannedPageSchema = z.object({
   page: z.number().int().min(1),
   imageJpegBase64: z.string().min(1).max(MAX_IMAGE_BASE64_LENGTH),
@@ -33,6 +39,7 @@ export const API_ERROR_CODES = [
   'rate_limited',
   'analysis_failed',
   'upstream_error',
+  'analysis_timeout',
 ] as const;
 
 export const apiErrorSchema = z.object({

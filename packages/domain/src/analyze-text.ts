@@ -5,10 +5,11 @@ import {
   llmFinalAnalysisSchema,
 } from '@pdf-insight/contracts';
 import { chunkPages } from './chunk-pages.ts';
+import type { Deadline } from './deadline.ts';
 import { ModelOutputInvalidError } from './errors.ts';
 import { groundAmounts } from './ground-amounts.ts';
 import { mergeAnalyses } from './merge-analyses.ts';
-import type { ModelPort } from './ports.ts';
+import type { ModelCallOptions, ModelPort } from './ports.ts';
 import { withOneRetry } from './retry.ts';
 import { isScannedPage } from './scanned-page.ts';
 
@@ -19,6 +20,8 @@ export interface AnalyzeTextDeps {
   now: () => Date;
   maxChunkChars: number;
   retryDelayMs: number;
+  /** The budget every model call of this analysis draws on, chunks and reduce alike. */
+  deadline?: Deadline;
 }
 
 const PARALLEL = 3;
@@ -90,18 +93,22 @@ export async function analyzeText(
   const chunks = chunkPages(request.pageTexts, { maxChars: deps.maxChunkChars });
   const imagesFor = (fromPage: number, toPage: number) =>
     request.scannedPages.filter((s) => s.page >= fromPage && s.page <= toPage);
-  const retry = <T>(fn: () => Promise<T>) => withOneRetry(fn, { delayMs: deps.retryDelayMs });
+  const retry = <T>(fn: (options: ModelCallOptions) => Promise<T>) =>
+    withOneRetry(fn, { delayMs: deps.retryDelayMs, deadline: deps.deadline });
 
   const partials = await mapLimited(chunks, PARALLEL, (chunk) =>
-    retry(async () =>
+    retry(async (options) =>
       validated(
-        await deps.model.analyzeChunk({
-          fileName: request.fileName,
-          pages: request.pages,
-          chunk,
-          images: imagesFor(chunk.fromPage, chunk.toPage),
-          isWhole: chunks.length === 1,
-        }),
+        await deps.model.analyzeChunk(
+          {
+            fileName: request.fileName,
+            pages: request.pages,
+            chunk,
+            images: imagesFor(chunk.fromPage, chunk.toPage),
+            isWhole: chunks.length === 1,
+          },
+          options,
+        ),
         chunks.length === 1,
       ),
     ),
@@ -111,13 +118,12 @@ export async function analyzeText(
     partials.length === 1
       ? (partials[0] as LlmAnalysis)
       : mergeAnalyses([
-          await retry(async () =>
+          await retry(async (options) =>
             validated(
-              await deps.model.reduce({
-                fileName: request.fileName,
-                pages: request.pages,
-                partials,
-              }),
+              await deps.model.reduce(
+                { fileName: request.fileName, pages: request.pages, partials },
+                options,
+              ),
               true,
             ),
           ),

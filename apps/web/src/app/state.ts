@@ -52,6 +52,7 @@ const ERROR_KEYS: Record<AnalysisErrorCode, MessageKey> = {
   rate_limited: 'error.rate_limited',
   analysis_failed: 'error.analysis_failed',
   upstream_error: 'error.upstream_error',
+  analysis_timeout: 'error.analysis_timeout',
   invalid_file: 'error.invalid_file',
   too_large: 'error.too_large',
   extraction_failed: 'error.extraction_failed',

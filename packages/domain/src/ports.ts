@@ -33,7 +33,12 @@ export interface ReduceInput {
   partials: LlmAnalysis[];
 }
 
+/** Per-call options: the adapter gives up a call after `timeoutMs` and reports it as a timeout. */
+export interface ModelCallOptions {
+  timeoutMs: number;
+}
+
 export interface ModelPort {
-  analyzeChunk: (input: ChunkInput) => Promise<LlmAnalysis>;
-  reduce: (input: ReduceInput) => Promise<LlmAnalysis>;
+  analyzeChunk: (input: ChunkInput, options: ModelCallOptions) => Promise<LlmAnalysis>;
+  reduce: (input: ReduceInput, options: ModelCallOptions) => Promise<LlmAnalysis>;
 }

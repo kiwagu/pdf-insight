@@ -23,5 +23,6 @@ describe('reducer', () => {
     expect(errorKeyFor('rate_limited')).toBe('error.rate_limited');
     expect(errorKeyFor('too_large')).toBe('error.too_large');
     expect(errorKeyFor('invalid_file')).toBe('error.invalid_file');
+    expect(errorKeyFor('analysis_timeout')).toBe('error.analysis_timeout');
   });
 });

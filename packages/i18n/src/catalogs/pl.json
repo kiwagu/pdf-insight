@@ -23,6 +23,7 @@
   "error.invalid_request": "Serwer odrzucił żądanie. Spróbuj ponownie.",
   "error.analysis_failed": "Model AI nie zwrócił poprawnej odpowiedzi. Spróbuj ponownie.",
   "error.upstream_error": "Usługa AI jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
+  "error.analysis_timeout": "Analiza trwała zbyt długo i została przerwana. Spróbuj ponownie za chwilę lub prześlij krótszy dokument.",
   "error.invalid_response": "Odpowiedź serwera nie przeszła walidacji. Spróbuj ponownie.",
   "result.summary": "Podsumowanie",
   "result.keyPoints": "Kluczowe punkty",
