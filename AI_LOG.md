@@ -152,3 +152,32 @@ API slice exists.
   alias; the planned jsdom version lacked `Blob.arrayBuffer`; and the shadcn CLI for the Base UI
   line generates a different `cn` dependency than the plan listed. Each was adjusted to what the
   installed tools actually do.
+
+### Slice 7: web UI and the Pages workflow
+
+- **Translation keys built from strings.** Two places in the plan composed translation keys from
+  runtime values (`error.${code}`, `type.${type}`), which the project's own rule about literal keys
+  forbids and which no static check could follow. Both became literal maps typed against the full
+  set of codes, so a missing translation is a compile error.
+- **A field the UI did not know about.** Amounts and dates gained a page number in the domain slice
+  after the UI plan was written; the tables now show it and the catalogs gained the column label in
+  both languages, with the parity gate confirming it.
+- **Three defects the review found in a passing build.** A second upload started while the first
+  was still running could overwrite the newer result with the older one; a clipboard failure was
+  swallowed, so "copied" could be shown when nothing was copied; and the repository link in the
+  footer was guessed from the host name, which is wrong for any fork or custom domain. Fixed with a
+  run counter that drops superseded results, an explicit failure message, and a build-time variable
+  that the deploy workflow fills from the repository the workflow runs in.
+- **A fix that introduced a new race.** The run counter from the first fix was checked after
+  analysis but not after file validation, so restoring a history entry while a file was still being
+  validated left the app stuck in "extracting" with no way out. The review found it in the fix
+  itself. Fixed by checking the run before every state update and by disabling history and the
+  drop zone while a run is in flight, with a regression test for restoration during a pending
+  validation.
+- **Verified in a browser, not only in jsdom.** The production build was driven in headless Chrome
+  with the API intercepted: a long contract was extracted in the browser, its scanned page was
+  rendered as an image, the layout at 360 px had no horizontal scroll, every control met the 44 px
+  target, Enter opened the picker, and the dark and reduced-motion variants rendered. The browser
+  pass was Claude's addition to the planned checks.
+- **Bundle size.** pdf.js dominated the main chunk (about 900 kB); it is now loaded on the first
+  upload instead of with the page, which cut the initial chunk by more than half.
