@@ -11,3 +11,4 @@ infra/dev/functions.env
 .DS_Store
 refs/
 .claude/
+apps/web/public/pdfjs/
