@@ -27,8 +27,9 @@ Request flow, in order:
 4. Validation: invalid JSON or a body that fails `analyzeRequestSchema` is 400
    `invalid_request`.
 5. Rate limit: a fixed window per client address (first `X-Forwarded-For` entry) in Postgres;
-   over the limit is 429 `rate_limited` with `Retry-After`. The limiter fails open, with an
-   error log, when the database cannot be reached.
+   over the limit is 429 `rate_limited` with `Retry-After`. The limiter fails open, with one error
+   log, when the RPC is unreachable, misses its 2 s deadline (request and body read together) or
+   answers with a body that fails its schema.
 6. Analysis: a model answer that fails the schema is retried once and then 502
    `analysis_failed`; an upstream failure is 503 `upstream_error`, retryable for rate limits,
    server errors and network failures.
