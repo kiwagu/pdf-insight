@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .sheet { fill: #18181b; }
+    .fold { fill: #52525b; }
+    .lines { stroke: #fafafa; }
+    @media (prefers-color-scheme: dark) {
+      .sheet { fill: #e4e4e7; }
+      .fold { fill: #a1a1aa; }
+      .lines { stroke: #18181b; }
+    }
+  </style>
+  <path class="sheet" d="M8 2h11l7 7v19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+  <path class="fold" d="M19 2v5a2 2 0 0 0 2 2h5z"/>
+  <path class="lines" d="M10.5 15h11M10.5 19.5h11M10.5 24h7" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>
